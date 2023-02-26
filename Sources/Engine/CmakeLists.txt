@@ -1,0 +1,173 @@
+message("
+╔═══╗───────────────╔╗─────────╔╗───╔╗
+║╔═╗║───────────────║║─────────║║──╔╝╚╗
+║║─╚╝╔══╗╔══╗╔═╗╔══╗║║───╔╗╔══╗║╚═╗╚╗╔╝
+║║─╔╗║╔╗║║╔╗║║╔╝║══╣║║─╔╗╠╣║╔╗║║╔╗║─║║ 
+║╚═╝║║╚╝║║╚╝║║║─╠══║║╚═╝║║║║╚╝║║║║║─║╚╗
+╚═══╝╚══╝╚══╝╚╝─╚══╝╚═══╝╚╝╚═╗║╚╝╚╝─╚═╝
+───────────────────────────╔═╝║        
+───────────────────────────╚══╝        
+")
+
+cmake_minimum_required(VERSION 3.23 FATAL_ERROR)
+
+set(CMAKE_CXX_STANDARD 17)
+set(MAIN_PROJECT_NAME Main)
+set(SOURCE_FOLDE src)
+set(INCLUDE_FOLDE include)
+set(DEPENDS_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../Dependencies)
+set(RESOURCES_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../../Resources)
+set(APP_ICON_RESOURCE_WINDOWS ${MAIN_PROJECT_NAME}/appIcon.rc)
+set( THIRD_PARTY_DLLS
+   ${DEPENDS_DIR}/Qt6/bin/Qt6Core.dll
+   ${DEPENDS_DIR}/Qt6/bin/Qt6Gui.dll
+   ${DEPENDS_DIR}/Qt6/bin/Qt6Widgets.dll
+   ${DEPENDS_DIR}/Qtadvanceddocking/bin/qtadvanceddocking.dll
+)
+set( THIRD_PARTY_PROJECT
+   Editor
+   EngineCore
+   EngineWindow
+   Game
+   Maths
+   Rendering
+   Tools
+   Physics
+)
+
+include("FetchContent")
+FetchContent_Declare(
+	GLFW
+	GIT_REPOSITORY https://github.com/glfw/glfw.git
+	GIT_TAG 3.3.8)
+	
+set(GLFW_BUILD_TESTS OFF)
+set(GLFW_BUILD_EXAMPLES OFF)
+FetchContent_MakeAvailable(GLFW)
+
+FetchContent_Declare(
+	assimp
+	GIT_REPOSITORY https://github.com/assimp/assimp.git
+	GIT_TAG v5.2.5)
+	
+FetchContent_MakeAvailable(assimp)
+
+set( THIRD_PARTY_INCLUDE
+   Qt6
+   Qtadvanceddocking
+   ${glfw_SOURCE_DIR}
+   ${assimp_SOURCE_DIR}
+   stb_image
+   VkBootstrap
+   VulkanMemoryAllocator
+   SPIRV-Relfect
+   Bullet
+)
+
+project(Engine LANGUAGES CXX)
+
+add_compile_options(/Zc:__cplusplus)
+
+find_package(Vulkan REQUIRED COMPONENTS glslc)
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${DEPENDS_DIR}/CMake)
+include_directories(${MAIN_PROJECT_NAME} PRIVATE ${Vulkan_INCLUDE_DIRS})
+include_directories(${MAIN_PROJECT_NAME} PRIVATE ${glfw_SOURCE_DIR}/include)
+include_directories(${MAIN_PROJECT_NAME} PRIVATE ${assimp_SOURCE_DIR}/include)
+
+foreach( project_i ${THIRD_PARTY_PROJECT})
+	add_subdirectory(${project_i})
+	include_directories(${MAIN_PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/${project_i}/${INCLUDE_FOLDE})
+endforeach( project_i )
+
+add_subdirectory(MathsTesting)
+
+ foreach( include_i ${THIRD_PARTY_INCLUDE})
+	include_directories(${MAIN_PROJECT_NAME} PRIVATE ${DEPENDS_DIR}/${include_i}/${INCLUDE_FOLDE})
+endforeach( include_i )
+
+
+set(PROJECT_SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/${MAIN_PROJECT_NAME}/${SOURCE_FOLDE})
+file(GLOB_RECURSE SOURCE_FILES 
+	${PROJECT_SOURCE_DIR}/*.c
+	${DEPENDS_DIR}/SPIRV-Relfect/${INCLUDE_FOLDE}/spirv_reflect.c
+	${PROJECT_SOURCE_DIR}/*.cc
+	${PROJECT_SOURCE_DIR}/*.cpp
+	${PROJECT_SOURCE_DIR}/*.cxx
+	${PROJECT_SOURCE_DIR}/*.c++)
+
+set(PROJECT_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/${MAIN_PROJECT_NAME}/${INCLUDE_FOLDE})
+file(GLOB_RECURSE HEADER_FILES 
+	${PROJECT_INCLUDE_DIR}/*.h
+	${PROJECT_INCLUDE_DIR}/*.hpp
+	${PROJECT_INCLUDE_DIR}/*.inl)
+
+add_executable(${MAIN_PROJECT_NAME} ${HEADER_FILES} ${SOURCE_FILES} ${APP_ICON_RESOURCE_WINDOWS})
+
+target_include_directories(${MAIN_PROJECT_NAME} PRIVATE ${PROJECT_INCLUDE_DIR})
+target_link_libraries(${MAIN_PROJECT_NAME} PRIVATE ${THIRD_PARTY_PROJECT})
+  
+  
+set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT ${MAIN_PROJECT_NAME})
+set_target_properties(${MAIN_PROJECT_NAME} PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/$(Configuration))
+
+
+#Copy resources Folder
+add_custom_command(TARGET ${MAIN_PROJECT_NAME} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+		${RESOURCES_DIR}
+        $<TARGET_FILE_DIR:${MAIN_PROJECT_NAME}>/Resources)
+		
+#Copy Qt6 dll
+foreach( file_i ${THIRD_PARTY_DLLS})
+    add_custom_command(TARGET ${MAIN_PROJECT_NAME} POST_BUILD
+		COMMAND ${CMAKE_COMMAND} -E copy
+			${file_i}
+			$<TARGET_FILE_DIR:${MAIN_PROJECT_NAME}>)
+endforeach( file_i )
+
+#Copy Qt6 plugin
+add_custom_command(TARGET ${MAIN_PROJECT_NAME} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+		${DEPENDS_DIR}/Qt6/plugins
+        $<TARGET_FILE_DIR:${MAIN_PROJECT_NAME}>/plugins)
+
+
+#look for shader
+file(GLOB_RECURSE TARGET_SHADER_FILES #any name for extentions --> choice 
+	${RESOURCES_DIR}/*.vert
+	${RESOURCES_DIR}/*.frag
+	${RESOURCES_DIR}/*.geom
+	${RESOURCES_DIR}/*.tesc
+	${RESOURCES_DIR}/*.tese
+	${RESOURCES_DIR}/*.comp
+	${RESOURCES_DIR}/*.glsl)
+
+#Add raw file to main with filter
+source_group(Shaders FILES ${TARGET_SHADER_FILES})
+target_sources(${MAIN_PROJECT_NAME} PRIVATE ${TARGET_SHADER_FILES})
+
+#shader compilation
+set(SHADER_BINARIES_DIR ${CMAKE_BINARY_DIR}/$(Configuration))
+foreach(SHADER_FILE IN LISTS TARGET_SHADER_FILES)
+	string(REPLACE ${CMAKE_CURRENT_SOURCE_DIR} ${SHADER_BINARIES_DIR} SHADER_BINARY ${SHADER_FILE})
+	string(REPLACE ../../ "" SHADER_BINARY_A ${SHADER_BINARY})
+	set(SHADER_BINARY ${SHADER_BINARY_A}.spv)
+	#generate matching folder hierachy inside the bin directory for the compiled shaders 
+	get_filename_component(SHADER_BINARY_DIR ${SHADER_BINARY} DIRECTORY)
+	file(MAKE_DIRECTORY ${SHADER_BINARY_DIR})
+	add_custom_command(
+		#file to produce
+		OUTPUT ${SHADER_BINARY}
+		#compile shader using glslc
+		COMMAND ${Vulkan_GLSLC_EXECUTABLE} "${SHADER_FILE}" -o "${SHADER_BINARY}"
+		#run command if the following file change or output is missing
+		DEPENDS ${SHADER_FILE}
+		VERBATIM #OS convention is respected (linux \ and windows /)
+		)
+	set(SHADER_BINARIES ${SHADER_BINARIES} ${SHADER_BINARY})
+endforeach()
+
+set(SHADER_TARGET_NAME ${MAIN_PROJECT_NAME}_shader)
+add_custom_target(${SHADER_TARGET_NAME} DEPENDS ${SHADER_BINARIES})
+
+add_dependencies(${MAIN_PROJECT_NAME} ${SHADER_TARGET_NAME})
