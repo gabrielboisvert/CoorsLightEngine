@@ -250,7 +250,7 @@ FQuaternion Maths::FQuaternion::normalize()
 
 float FQuaternion::length(const FQuaternion& pTarget)
 {
-	return sqrtf(lengthSquare(pTarget));
+	return sqrtf(lengthSquared(pTarget));
 }
 
 float Maths::FQuaternion::length()
@@ -258,14 +258,14 @@ float Maths::FQuaternion::length()
 	return length(*this);
 }
 
-float FQuaternion::lengthSquare(const FQuaternion& pTarget)
+float FQuaternion::lengthSquared(const FQuaternion& pTarget)
 {
 	return pTarget.x * pTarget.x + pTarget.y * pTarget.y + pTarget.z * pTarget.z + pTarget.w * pTarget.w;
 }
 
-float Maths::FQuaternion::lengthSquare()
+float Maths::FQuaternion::lengthSquared()
 {
-	return lengthSquare(*this);
+	return lengthSquared(*this);
 }
 
 float FQuaternion::getAngle(const FQuaternion& pTarget)
@@ -295,7 +295,7 @@ FVector3 Maths::FQuaternion::getRotationAxis()
 
 FQuaternion FQuaternion::inverse(const FQuaternion& pTarget)
 {
-	return conjugate(pTarget) / lengthSquare(pTarget);
+	return conjugate(pTarget) / lengthSquared(pTarget);
 }
 
 FQuaternion Maths::FQuaternion::inverse()
@@ -417,7 +417,7 @@ FVector3 FQuaternion::rotatePoint(const FVector3& pPoint, const FQuaternion& pQu
 FVector3 FQuaternion::eulerAngles(FQuaternion& pTarget)
 {
 	pTarget = pTarget.normalize();
-	
+
 	// This is a kind of hack because when the input Quaternion is {0.5f, 0.5f, -0.5f, 0.5f} or
 	// {0.5f, 0.5f, 0.5f, -0.5f}, the output value is incorrect.
 	if (pTarget == FQuaternion{ 0.5f, 0.5f, -0.5f, 0.5f })  return { 0.0f, 90.0f, -90.0f };
@@ -516,6 +516,11 @@ FMatrix4 Maths::FQuaternion::toMatrix4()
 FQuaternion Maths::FQuaternion::toQuaternion(const FMatrix4& pMatrix4)
 {
 	return FQuaternion();
+}
+
+std::string Maths::FQuaternion::toString()
+{
+	return std::string("Quaternion: x: " + std::to_string(x) + " y: " + std::to_string(y) + " z: " + std::to_string(z) + " w: " + std::to_string(w));
 }
 
 bool FQuaternion::operator==(const FQuaternion& pOtherQuat) const

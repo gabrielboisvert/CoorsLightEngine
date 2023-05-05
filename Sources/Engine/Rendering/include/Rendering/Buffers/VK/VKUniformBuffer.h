@@ -14,6 +14,7 @@ namespace Rendering::Buffers::VK
 			VkDescriptorSet mDescriptorSets;
 			unsigned int mSize;
 			T mData;
+			std::mutex mMutex;
 
 			VKUniformBuffer(VkShaderStageFlagBits pStage) : mSize(sizeof(T))
 			{
@@ -35,6 +36,8 @@ namespace Rendering::Buffers::VK
 
 			void updateData()
 			{
+				std::unique_lock lock(mMutex);
+
 				void* data;
 				vmaMapMemory(service(VmaAllocator), mBuffer.mAllocation, &data);
 				memcpy(data, &mData, mSize);

@@ -10,6 +10,7 @@ namespace Editor::Widget
 		public:
 			QPoint mDragStartPosition;
 			bool mDragging = false;
+			bool manuelEvent = false;
 
 			WidgetDoubleSpinBox(const double pDefaultValue, const long long pMin, const long long pMax, const float pStep = 0.3);
 	};

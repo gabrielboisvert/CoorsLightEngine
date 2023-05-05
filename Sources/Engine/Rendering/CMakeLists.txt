@@ -38,7 +38,13 @@ source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${HEADER_FILES} ${SOURCE_FIL
 add_library(${PROJECT_NAME} STATIC)
 target_sources(${PROJECT_NAME} PRIVATE ${SOURCE_FILES} ${HEADER_FILES})
 target_link_libraries(${PROJECT_NAME} PRIVATE ${Vulkan_LIBRARIES})
-target_link_libraries(${PROJECT_NAME} PRIVATE assimp)
+target_link_libraries(${PROJECT_NAME} PRIVATE ${DEPENDS_DIR}/assimp/lib/assimp-vc143-mt.lib)
+target_link_libraries(${PROJECT_NAME} PRIVATE ${DEPENDS_DIR}/assimp/lib/IrrXML.lib)
+target_link_libraries(${PROJECT_NAME} PRIVATE ${DEPENDS_DIR}/assimp/lib/zlibstatic.lib)
+target_link_libraries(${PROJECT_NAME} 	PRIVATE debug  ${DEPENDS_DIR}/VkBootstrap/lib/Dvk-bootstrap.lib
+										PRIVATE optimized  ${DEPENDS_DIR}/VkBootstrap/lib/Rvk-bootstrap.lib)
+target_link_libraries(${PROJECT_NAME} PRIVATE ${DEPENDS_DIR}/VulkanMemoryAllocator/lib/VulkanMemoryAllocator.lib)
+target_link_libraries(${PROJECT_NAME} PRIVATE ${DEPENDS_DIR}/FreeType/lib/freetype.lib)
 
 foreach( project_i ${THIRD_PARTY_PROJECT})
 	include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/${project_i}/${INCLUDE_FOLDE})
@@ -48,6 +54,7 @@ foreach( include_i ${THIRD_PARTY_INCLUDE})
 	include_directories(${PROJECT_NAME} PRIVATE ${DEPENDS_DIR}/${include_i}/${INCLUDE_FOLDE})
 endforeach( include_i )
 
-target_link_libraries(${PROJECT_NAME} 	PRIVATE debug  ${DEPENDS_DIR}/VkBootstrap/lib/Dvk-bootstrap.lib
-										PRIVATE optimized  ${DEPENDS_DIR}/VkBootstrap/lib/Rvk-bootstrap.lib)
-target_link_libraries(${PROJECT_NAME} PRIVATE ${DEPENDS_DIR}/VulkanMemoryAllocator/lib/VulkanMemoryAllocator.lib)
+add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+		${PROJECT_INCLUDE_DIR}
+        $<TARGET_FILE_DIR:${MAIN_PROJECT_NAME}>/Resources/Editor/Build/include/)

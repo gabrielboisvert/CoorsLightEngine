@@ -162,7 +162,7 @@ namespace Maths
 
 		static FMatrix4 createPerspective(const float pfov, const float paspectRatio, const float pzNear, const float pzFar);
 
-		static FMatrix4 createOrthographic(const float psize, const float paspectRatio, const float pzNear, const float pzFar);
+		static FMatrix4 createOrthographic(const float pleft, const float pright, const float pbottom, const float ptop, const float pzNear, const float pzFar);
 
 		static FMatrix4 lookAt(const float peyeX, const float peyeY, const float peyeZ, const float plookX, const float plookY, const float plookZ, const float pupX, const float pupY, const float pupZ);
 

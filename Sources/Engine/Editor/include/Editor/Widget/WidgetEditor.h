@@ -20,8 +20,13 @@
 #include "EngineCore/Thread/ThreadPool.h"
 #include "EngineCore/ResourceManagement/ResourceManager.h"
 #include "Editor/Widget/WidgetSceneApp.h"
+#include "Editor/Widget/WidgetGameApp.h"
 #include "Editor/Widget/WidgetModelViewerApp.h"
 #include "Editor/Widget/WidgetInspectorApp.h"
+#include "Editor/Widget/WidgetParticleApp.h"
+#include <rapidjson/document.h>
+#include "WidgetMaterialApp.h"
+#include <Editor/Widget/WidgetUIApp.h>
 
 namespace Editor::Widget
 {
@@ -37,7 +42,7 @@ namespace Editor::Widget
 	class WidgetEditor : public QMainWindow
 	{
 		public:
-			Core::EditorApp* mApp;
+			Core::EditorApp* mApp = nullptr;
 			QSettings mSettings;
 			QSettings mProjectSettings;
 			Data::ProjectLocation mLocation;
@@ -54,6 +59,10 @@ namespace Editor::Widget
 
 			bool mPlaying = false;
 			bool mPaused = true;
+			bool hasQuit = false;
+			bool playOnceClick = false;
+			bool pressOnce = false;
+
 
 			std::map<QString, QAction*> viewActions;
 
@@ -61,9 +70,13 @@ namespace Editor::Widget
 			WidgetConsoleApp* mConsole = nullptr;
 			WidgetContentBrowserApp* mContent = nullptr;
 			WidgetSceneHierarchyApp* mHierarchy = nullptr;
-			WidgetSceneApp* mWindow = nullptr;
+			WidgetGameApp* mWindow = nullptr;
+			WidgetSceneApp* mScene = nullptr;
 			WidgetModelViewerApp* mModelView = nullptr;
 			WidgetInspectorApp* mInspector = nullptr;
+			WidgetMaterialApp* mMaterial = nullptr;
+			WidgetParticleApp* mParticle = nullptr;
+			WidgetUIApp* mUI = nullptr;
 
 			EngineCore::Core::EngineApp mEngineApp;
 
@@ -88,7 +101,9 @@ namespace Editor::Widget
 
 			//Qevent
 			void newSceneDialog();
+			void clearScene();
 			void openScene();
+			void openSceneWithPath(QString pMap);
 			bool save();
 			bool saveAs();
 			bool saveFile(const QString& pFileName);
@@ -97,6 +112,7 @@ namespace Editor::Widget
 			void quit();
 			void minimize();
 			void maximize();
+			void copyScene(bool pSaveBeforeLoad = false);
 			void play();
 			void playFrame();
 			void stop();
@@ -121,5 +137,14 @@ namespace Editor::Widget
 
 			void createPreview(std::string pFile, Rendering::Resources::Model* pModel);
 			void openModel(QString pPath);
+			void openMaterial(QString pPath);
+			void openParticle(QString pPath);
+			void openUI(QString pPath);
+
+			std::string exec(const char* cmd, bool pPrintToConsole = true);
+			void createBuild(QString pOutput);
+
+			void parseMap(std::string pName);
+			WidgetGameObjectTreeItem* deserializeObjChild(void* pItem, const rapidjson::Value& pObject);
 	};
 }

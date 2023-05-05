@@ -16,13 +16,11 @@ WidgetSceneHierarchyApp::WidgetSceneHierarchyApp(QSettings& pSetting, WidgetInsp
 	content->setLayout(layout);
 
 	layout->addWidget(&mTree);
-	updateTree();
+	clearTree();
 }
 
-void WidgetSceneHierarchyApp::updateTree()
+void WidgetSceneHierarchyApp::clearTree()
 {
 	mTree.mTreeModel.clear();
 	mTree.initHeader("Scene");
-
-	//Create gameobject base on scene file
 }

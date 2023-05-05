@@ -5,7 +5,7 @@
 #include "EngineCore/Core/EngineApp.h"
 #include "EngineWindow/Core/Window.h"
 #include "Rendering/Resources/Model.h"
-#include "Rendering/Data/OrbitalCamera.h"
+#include "Editor/Data/OrbitalCamera.h"
 #include "Rendering/Renderer/VK/VKRenderer.h"
 #include "Rendering/Buffers/VK/VKUniformBuffer.h"
 #include "Rendering/Data/UniformData.h"
@@ -31,7 +31,7 @@ namespace Editor::Widget
 			Rendering::Data::Material* mGridMat = nullptr;
 			Rendering::Buffers::VK::VKUniformBuffer<Rendering::Data::GridData> mGridUnibuffer;
 			
-			Rendering::Data::OrbitalCamera mCamera;
+			Editor::Data::OrbitalCamera mCamera;
 			Rendering::Resources::Model* mModel = nullptr;
 
 			HWND windowId;

@@ -41,7 +41,7 @@ namespace Editor::Widget
 			void import();
 			void showInExplorer();
 			void createFolder();
-			void createFile(QString pName, const char* pExtension);
+			QString createFile(QString pName, const char* pExtension);
 			void clear();
 			void updateContentDir(const QList<QFileInfo>& pDirFileList);
 

@@ -41,6 +41,7 @@ Define::EEditorState EditorApp::runEditor(const std::string& pProjectPath, const
 			project = editor.mNewProjectOpen;
 	}
 	
+	EngineCore::Service::ServiceLocator::instance.clearService();
 	if (res == Define::LOAD_EDITOR)
 		return runEditor(Utils::qStringToStdString(project.mFolder), Utils::qStringToStdString(project.mName));
 

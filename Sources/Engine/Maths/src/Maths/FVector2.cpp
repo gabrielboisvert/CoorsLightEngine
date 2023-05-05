@@ -10,6 +10,11 @@ const FVector2 FVector2::Zero(0.0f, 0.0f);
 const FVector2 FVector2::UnitX(1.0f, 0.0f);
 const FVector2 FVector2::UnitY(0.0f, 1.0f);
 
+const FVector2 FVector2::Left(1, 0);
+const FVector2 FVector2::Right(-1, 0);
+const FVector2 FVector2::Up(0, 1);
+const FVector2 FVector2::Down(0, -1);
+
 FVector2::FVector2() : x(0.0f), y(0.0f) {}
 
 FVector2::FVector2(float pX, float pY) : x(pX), y(pY) {}

@@ -4,6 +4,7 @@
 
 using namespace Rendering::Context;
 
+std::mutex DescriptorAllocator::instance;
 
 VkDescriptorPool createPool(VkDevice pDevice, const DescriptorAllocator::PoolSizes& pPoolSizes, int pCount, VkDescriptorPoolCreateFlags pFlags)
 {
@@ -58,8 +59,12 @@ bool DescriptorAllocator::allocate(VkDescriptorSet* pSet, VkDescriptorSetLayout 
 	allocInfo.descriptorPool = mCurrentPool;
 	allocInfo.descriptorSetCount = 1;
 
+	VkResult allocResult;
 
-	VkResult allocResult = vkAllocateDescriptorSets(service(VkDevice), &allocInfo, pSet);
+	{	
+		std::unique_lock lock(instance);
+		allocResult = vkAllocateDescriptorSets(service(VkDevice), &allocInfo, pSet);
+	}
 	bool needReallocate = false;
 
 	switch (allocResult) {
@@ -84,7 +89,10 @@ bool DescriptorAllocator::allocate(VkDescriptorSet* pSet, VkDescriptorSetLayout 
 		mCurrentPool = grabPool();
 		mUsedPools.push_back(mCurrentPool);
 
-		allocResult = vkAllocateDescriptorSets(service(VkDevice), &allocInfo, pSet);
+		{
+			std::unique_lock lock(instance);
+			allocResult = vkAllocateDescriptorSets(service(VkDevice), &allocInfo, pSet);
+		}
 
 		//if it still fails then we have big issues
 		if (allocResult == VK_SUCCESS)
@@ -100,9 +108,11 @@ void DescriptorAllocator::cleanup()
 {
 	for (auto p : mFreePools)
 		vkDestroyDescriptorPool(service(VkDevice), p, nullptr);
+	mFreePools.clear();
 
 	for (auto p : mUsedPools)
 		vkDestroyDescriptorPool(service(VkDevice), p, nullptr);
+	mUsedPools.clear();
 }
 
 VkDescriptorPool DescriptorAllocator::grabPool()
@@ -114,7 +124,7 @@ VkDescriptorPool DescriptorAllocator::grabPool()
 		return pool;
 	}
 	else
-		return createPool(service(VkDevice), mDescriptorSizes, 1000, 0);
+		return createPool(service(VkDevice), mDescriptorSizes, 5000, 0);
 }
 
 VkDescriptorSetLayout DescriptorLayoutCache::createDescriptorLayout(VkDescriptorSetLayoutCreateInfo* pInfo)
@@ -160,8 +170,11 @@ VkDescriptorSetLayout DescriptorLayoutCache::createDescriptorLayout(VkDescriptor
 
 void DescriptorLayoutCache::cleanup()
 {
+	if (service(VkDevice) == nullptr)
+		return;
 	for (auto pair : mLayoutCache)
 		vkDestroyDescriptorSetLayout(service(VkDevice), pair.second, nullptr);
+	mLayoutCache.clear();
 }
 
 DescriptorLayoutCache::~DescriptorLayoutCache()

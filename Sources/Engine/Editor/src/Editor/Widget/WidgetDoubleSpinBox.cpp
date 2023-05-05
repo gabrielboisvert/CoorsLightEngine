@@ -5,9 +5,9 @@
 using namespace Editor::Widget;
 
 WidgetDoubleSpinBox::WidgetDoubleSpinBox(const double pDefaultValue, const long long pMin, const long long pMax, const float pStep) : QDoubleSpinBox()
-{
-	setValue(pDefaultValue);
+{	
 	setRange(pMin, pMax);
+	setValue(pDefaultValue);
 	setSingleStep(pStep);
 	setLineEdit(new WidgetDoubleSpinBoxLineEdit(*this));
 

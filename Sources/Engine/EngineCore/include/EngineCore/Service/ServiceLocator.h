@@ -20,7 +20,10 @@ namespace EngineCore::Service
 			void provide(T& pService)
 			{
 				std::unique_lock lock(serviceMutex);
-				services[typeid(T).hash_code()] = std::any(&pService);
+
+				size_t hash = typeid(T).hash_code();
+				if (!services[hash].has_value())
+					services[hash] = std::any(&pService);
 			}
 		
 		
@@ -52,6 +55,19 @@ namespace EngineCore::Service
 				services.erase(hash);
 				delete service;
 			}
+
+			template<typename T>
+			void clear()
+			{
+				size_t hash = typeid(T).hash_code();
+
+				if (!services[hash].has_value())
+					return;
+
+				services.erase(hash);
+			}
+
+			void clearService();
 
 			~ServiceLocator();
 	};

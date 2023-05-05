@@ -9,7 +9,7 @@ WidgetSceneLabel::WidgetSceneLabel()
 void WidgetSceneLabel::init(QWidget* pParent, QSettings& pSetting, int pHeight, const QString& pScenePath, const QString& pSceneName)
 {
     mWidget = new QWidget(pParent);
-    mWidget->move(pSetting.value("IconWidth").toInt(), pHeight);
+    mWidget->move(pSetting.value("IconWidth").toInt() + 300, pHeight);
     mWidget->setObjectName("LevelName");
     mWidget->setFixedWidth(pSetting.value("LevelNameWidget").toInt());
 

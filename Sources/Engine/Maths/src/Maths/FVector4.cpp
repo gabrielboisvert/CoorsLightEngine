@@ -299,3 +299,8 @@ FVector4 FVector4::lerp(const FVector4& pA, const FVector4& pB, float pT)
 {
 	return (pA + (pB - pA) * pT);
 }
+
+std::string FVector4::toString()
+{
+	return std::string("Vector4: X: " + std::to_string(x) + " Y: " + std::to_string(y) + " Z: " + std::to_string(z) + " W: " + std::to_string(w));
+}

@@ -97,7 +97,7 @@ QMenuBar::item:pressed
 
 QMenu
 {
-	height: 270px;
+	height: 310px;
 	background-color: #383838;
 }
 
@@ -551,3 +551,4 @@ QCheckBox::indicator
 	border: 0.04em solid #2d2d2d;
 	border-radius: 3px;
 }
+

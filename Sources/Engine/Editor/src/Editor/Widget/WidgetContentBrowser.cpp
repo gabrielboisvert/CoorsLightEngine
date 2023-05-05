@@ -1,5 +1,10 @@
 #include "Editor/Widget/WidgetContentBrowser.h"
 #include "Editor/Widget/WidgetSelectableBrowserModel.h"
+#include "Editor/Widget/WidgetSelectableBrowserMaterial.h"
+#include "Editor/Widget/WidgetSelectableBrowserScene.h"
+#include "Editor/Widget/WidgetSelectableBrowserUI.h"
+#include "Editor/Widget/WidgetSelectableBrowserPrefab.h"
+#include "Editor/Widget/WidgetSelectableBrowserParticle.h"
 #include <QtWidgets/qboxlayout.h>
 #include <QtWidgets/qsplitter.h>
 #include <QtWidgets/qmenu.h>
@@ -13,9 +18,10 @@
 #include "Editor/Widget/WidgetMenuSperarator.h"
 #include "EngineCore/ResourceManagement/ResourceManager.h"
 #include "EngineCore/Service/ServiceLocator.h"
-#include "EngineCore/Service/ServiceLocator.h"
 #include "Editor/Widget/WidgetEditor.h"
 #include <QtWidgets/qscrollarea.h>
+#include "Rendering/Resources/Material.h"
+#include "EngineCore/Service/ServiceLocator.h"
 
 using namespace Editor::Widget;
 
@@ -58,7 +64,7 @@ void WidgetContentBrowser::dropEvent(QDropEvent* e)
 		Utils::copyFileAndDir(url.toLocalFile(), mCurrentDir, this);
 
 		QFileInfo info(url.toLocalFile());
-		Tools::Utils::PathParser::EFileType type = Tools::Utils::PathParser::getFileType(info.suffix());
+		Tools::Utils::PathParser::EFileType type = Utils::getFileType(info.suffix());
 		if (type == Tools::Utils::PathParser::EFileType::MODEL)
 			service(Editor::Widget::WidgetEditor).loadFile<Rendering::Resources::Model>(mCurrentDir + "/" + info.fileName(), info.baseName());
 	}
@@ -98,9 +104,20 @@ void WidgetContentBrowser::showContextMenu(const QPoint& pos)
 	contextMenu.addAction(&assetClass);
 
 	QAction assetLevel(QIcon(mSettings.value("LevelIcon").toString()), mSettings.value("CategoryAssetLevelName").toString(), this);
-	connect(&assetLevel, &QAction::triggered, this, [this] { createFile("/Level", Define::SCENE_EXTENSION); });
+	connect(&assetLevel, &QAction::triggered, this, [this] { createFile("/NewLevel", Define::SCENE_EXTENSION); });
 	contextMenu.addAction(&assetLevel);
 
+	QAction assetMaterial(QIcon(mSettings.value("CategoryAssetMaterialIcon").toString()), mSettings.value("CategoryAssetMaterialName").toString(), this);
+	connect(&assetMaterial, &QAction::triggered, this, [this] { createFile("/NewMaterial", Define::MATERIAL_EXTENSION); });
+	contextMenu.addAction(&assetMaterial);
+
+	QAction assetParticle(QIcon(mSettings.value("CategoryAssetParticleIcon").toString()), mSettings.value("CategoryAssetParticleName").toString(), this);
+	connect(&assetParticle, &QAction::triggered, this, [this] { createFile("/NewParticle", Define::PARTICLE_EXTENSION); });
+	contextMenu.addAction(&assetParticle);
+
+	QAction assetUI(QIcon(mSettings.value("CategoryAssetUIIcon").toString()), mSettings.value("CategoryAssetUIName").toString(), this);
+	connect(&assetUI, &QAction::triggered, this, [this] { createFile("/NewUI", Define::UI_EXTENSION); });
+	contextMenu.addAction(&assetUI);
 
 	contextMenu.exec(mapToGlobal(pos));
 }
@@ -113,7 +130,7 @@ void WidgetContentBrowser::import()
 		Utils::copyFileAndDir(fileName, mCurrentDir, this);
 	
 		QFileInfo info(fileName);
-		Tools::Utils::PathParser::EFileType type = Tools::Utils::PathParser::getFileType(info.suffix());
+		Tools::Utils::PathParser::EFileType type = Utils::getFileType(info.suffix());
 		if (type == Tools::Utils::PathParser::EFileType::MODEL)
 			service(Editor::Widget::WidgetEditor).loadFile<Rendering::Resources::Model>(mCurrentDir + "/" + info.fileName(), info.baseName());
 	}
@@ -131,12 +148,14 @@ void WidgetContentBrowser::createFolder()
 	QDir().mkdir(path);
 }
 
-void WidgetContentBrowser::createFile(QString pName, const char* pExtension)
+QString WidgetContentBrowser::createFile(QString pName, const char* pExtension)
 {
 	QString path = Utils::uniqueString(mCurrentDir + pName, pExtension);
 	mNewDoc = Data::NewDocument(path, true);
 	QFile file(path);
 	file.open(QIODevice::WriteOnly);
+
+	return path;
 }
 
 void WidgetContentBrowser::clear()
@@ -165,7 +184,7 @@ void WidgetContentBrowser::updateContentDir(const QList<QFileInfo>& pDirFileList
 			content = new WidgetSelectableBrowser(*this, pDirFileList[i].absoluteFilePath(), true, mSettings, pDirFileList[i].fileName(), mSettings.value("BrowserDirIcon").toString());
 		else
 		{
-			Tools::Utils::PathParser::EFileType type = Tools::Utils::PathParser::getFileType(pDirFileList[i].suffix());
+			Tools::Utils::PathParser::EFileType type = Utils::getFileType(pDirFileList[i].suffix());
 
 			switch (type)
 			{
@@ -181,20 +200,16 @@ void WidgetContentBrowser::updateContentDir(const QList<QFileInfo>& pDirFileList
 					content = new WidgetSelectableBrowser(*this, pDirFileList[i].absoluteFilePath(), false, mSettings, pDirFileList[i].baseName(), pDirFileList[i].absoluteFilePath());
 					break;
 
-				case Tools::Utils::PathParser::EFileType::SHADER:
-					content = new WidgetSelectableBrowser(*this, pDirFileList[i].absoluteFilePath(), false, mSettings, pDirFileList[i].baseName(), mSettings.value("BrowserLoadingIcon").toString());
-					break;
-
 				case Tools::Utils::PathParser::EFileType::MATERIAL:
-					content = new WidgetSelectableBrowser(*this, pDirFileList[i].absoluteFilePath(), false, mSettings, pDirFileList[i].baseName(), mSettings.value("BrowserLoadingIcon").toString());
+					content = new WidgetSelectableBrowserMaterial(*this, pDirFileList[i].absoluteFilePath(), false, mSettings, pDirFileList[i].baseName(), tryLoadIcon(pDirFileList[i].absoluteFilePath(), pDirFileList[i].baseName()), true);
 					break;
 			
 				case Tools::Utils::PathParser::EFileType::SOUND:
-					content = new WidgetSelectableBrowser(*this, pDirFileList[i].absoluteFilePath(), false, mSettings, pDirFileList[i].baseName(), mSettings.value("BrowserLoadingIcon").toString());
+					content = new WidgetSelectableBrowser(*this, pDirFileList[i].absoluteFilePath(), false, mSettings, pDirFileList[i].baseName(), mSettings.value("BrowserSoundIcon").toString());
 					break;
 
 				case Tools::Utils::PathParser::EFileType::SCENE:
-					content = new WidgetSelectableBrowser(*this, pDirFileList[i].absoluteFilePath(), false, mSettings, pDirFileList[i].baseName(), mSettings.value("BrowserLevelIcon").toString());
+					content = new WidgetSelectableBrowserScene(*this, pDirFileList[i].absoluteFilePath(), false, mSettings, pDirFileList[i].baseName(), mSettings.value("BrowserLevelIcon").toString());
 					break;
 
 				case Tools::Utils::PathParser::EFileType::SCRIPT:
@@ -204,9 +219,20 @@ void WidgetContentBrowser::updateContentDir(const QList<QFileInfo>& pDirFileList
 				case Tools::Utils::PathParser::EFileType::FONT:
 					content = new WidgetSelectableBrowser(*this, pDirFileList[i].absoluteFilePath(), false, mSettings, pDirFileList[i].baseName(), mSettings.value("BrowserLoadingIcon").toString(), true);
 					break;
+
+				case Tools::Utils::PathParser::EFileType::UI:
+					content = new WidgetSelectableBrowserUI(*this, pDirFileList[i].absoluteFilePath(), false, mSettings, pDirFileList[i].baseName(), tryLoadIcon(pDirFileList[i].absoluteFilePath(), pDirFileList[i].baseName()), true);
+					break;
+
+				case Tools::Utils::PathParser::EFileType::PREFAB:
+					content = new WidgetSelectableBrowserPrefab(*this, pDirFileList[i].absoluteFilePath(), false, mSettings, pDirFileList[i].baseName(), mSettings.value("BrowserPrefabIcon").toString(), false);
+					break;
+
+				case Tools::Utils::PathParser::EFileType::PARTICLE:
+					content = new WidgetSelectableBrowserParticle(*this, pDirFileList[i].absoluteFilePath(), false, mSettings, pDirFileList[i].baseName(), mSettings.value("BrowserParticleIcon").toString(), false);
+					break;
 			}
 		}
-
 
 		mLayout->addWidget(content);
 		content->installEventFilter(this);
@@ -295,7 +321,7 @@ bool WidgetContentBrowser::eventFilter(QObject* obj, QEvent* event)
 const QString WidgetContentBrowser::tryLoadIcon(const QString& pPath, const QString& pFileName)
 {
 	EngineCore::ResourcesManagement::ResourceManager& manager = service(EngineCore::ResourcesManagement::ResourceManager);
-	if (manager.get<Rendering::Resources::Model>(Utils::qStringToStdString(pPath)) != nullptr)
+	if (manager.get<Rendering::Resources::IResource>(Utils::qStringToStdString(pPath)) != nullptr)
 	{
 		QString preview = mApp.mRootDir + mSettings.value("previewFolder").toString() + "/" + pFileName + ".png";
 		if (QFile::exists(preview))

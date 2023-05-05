@@ -27,9 +27,37 @@ VKOffScreenRenderer::VKOffScreenRenderer(unsigned int pWidth, unsigned int pHeig
 
 VKOffScreenRenderer::~VKOffScreenRenderer()
 {
-    //vkWaitForFences(mDriver.mDevice, 1, &getCurrentFrame().mRenderFence, true, UINT64_MAX);
-
+    cleanupSwapChain();
     mMainDeletionQueue.flush();
+
+    std::unique_lock lock(IRenderer::mInstanceLock);
+    IRenderer::mInstance--;
+}
+
+void VKOffScreenRenderer::recreateSwapChain(unsigned int pWidth, unsigned int pHeight)
+{
+    mWindowExtent = { pWidth, pHeight };
+
+    {
+        std::unique_lock lock(IRenderer::mInstanceLock);
+        vkDeviceWaitIdle(mDriver.mDevice);
+    }
+
+    cleanupSwapChain();
+
+    createFrameBufferAttachement();
+    createFrameBuffer();
+}
+
+void VKOffScreenRenderer::cleanupSwapChain()
+{
+    vkDestroyFramebuffer(mDriver.mDevice, mFramebuffer, nullptr);
+    
+    vkDestroyImageView(mDriver.mDevice, mColorImageView, nullptr);
+    vmaDestroyImage(mAllocator, mColorImage.mImage, mColorImage.mAllocation);
+
+    vkDestroyImageView(mDriver.mDevice, mDepthImageView, nullptr);
+    vmaDestroyImage(mAllocator, mDepthImage.mImage, mDepthImage.mAllocation);
 }
 
 void VKOffScreenRenderer::initGraphicsQueue()
@@ -90,13 +118,6 @@ void VKOffScreenRenderer::createFrameBufferAttachement()
     VkImageViewCreateInfo cview_info = VKInit::imageviewCreateInfo(mColorFormat, mColorImage.mImage, VK_IMAGE_ASPECT_COLOR_BIT);
     vkCreateImageView(mDriver.mDevice, &cview_info, nullptr, &mColorImageView);
 
-    mMainDeletionQueue.pushFunction([=]()
-    {
-        vkDestroyImageView(mDriver.mDevice, mColorImageView, nullptr);
-        vmaDestroyImage(mAllocator, mColorImage.mImage, mColorImage.mAllocation);
-    });
-
-
     VkImageCreateInfo dimg_info = VKInit::imageCreateInfo(mDepthFormat, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, ImageExtent);
 
     VmaAllocationCreateInfo dimg_allocinfo = {};
@@ -106,12 +127,6 @@ void VKOffScreenRenderer::createFrameBufferAttachement()
 
     VkImageViewCreateInfo dview_info = VKInit::imageviewCreateInfo(mDepthFormat, mDepthImage.mImage, VK_IMAGE_ASPECT_DEPTH_BIT);
     vkCreateImageView(mDriver.mDevice, &dview_info, nullptr, &mDepthImageView);
-
-    mMainDeletionQueue.pushFunction([=]()
-    {
-        vkDestroyImageView(mDriver.mDevice, mDepthImageView, nullptr);
-        vmaDestroyImage(mAllocator, mDepthImage.mImage, mDepthImage.mAllocation);
-    });
 }
 
 void VKOffScreenRenderer::createRenderPass()
@@ -198,11 +213,6 @@ void VKOffScreenRenderer::createFrameBuffer()
     framebufferCreateInfo.layers = 1;
     if (vkCreateFramebuffer(mDriver.mDevice, &framebufferCreateInfo, nullptr, &mFramebuffer) != VK_SUCCESS)
         throw std::runtime_error("failed to create framebuffer!");
-
-    mMainDeletionQueue.pushFunction([=]()
-    {
-        vkDestroyFramebuffer(mDriver.mDevice, mFramebuffer, nullptr);
-    });
 }
 
 void VKOffScreenRenderer::beginFrame()
@@ -332,8 +342,7 @@ const void* VKOffScreenRenderer::pixelToArray()
     // Get layout of the image (including row pitch)
     VkImageSubresource subResource{};
     subResource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    VkSubresourceLayout subResourceLayout;
-
+    
     vkGetImageSubresourceLayout(mDriver.mDevice, dstImage, &subResource, &subResourceLayout);
 
     // Map image memory so we can start copying from it
@@ -345,10 +354,10 @@ const void* VKOffScreenRenderer::pixelToArray()
 
 void VKOffScreenRenderer::saveToPNG(const char* pFile)
 {
-    Rendering::Resources::Loaders::ImageLoader::exportPNG(pFile, mWindowExtent.width, mWindowExtent.height, 4, pixelToArray());
+    Rendering::Resources::Loaders::ImageLoader::exportPNG(pFile, subResourceLayout.rowPitch / 4, mWindowExtent.height, 4, pixelToArray());
 }
 
 void VKOffScreenRenderer::saveToJPG(const char* pFile)
 {
-    Rendering::Resources::Loaders::ImageLoader::exportJPG(pFile, mWindowExtent.width, mWindowExtent.height, 4, pixelToArray());
+    Rendering::Resources::Loaders::ImageLoader::exportJPG(pFile, subResourceLayout.rowPitch / 4, mWindowExtent.height, 4, pixelToArray());
 }

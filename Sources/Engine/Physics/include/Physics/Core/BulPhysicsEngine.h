@@ -5,34 +5,43 @@
 #include "Physics/Core/BulPhysicWorld.h"
 #include <set>
 #include <mutex>
+#include "Physics/Renderer/PhysicsDebugDrawer.h"
 
 namespace Physics::Core
 {
-	const float	EARTH_GRAVITY = -9.807f;
+	enum class CollisionGroups
+	{
+		Default = 1
+	};
+
+	const float	EARTH_GRAVITY = 9.807f;
 
 	using CollisionSet = std::set<std::tuple<const btCollisionObject*, const btCollisionObject*, const btPersistentManifold*>>;
-	
-	
 
 	class BulPhysicsEngine : public IPhysicsEngine, public PhysicWorld
 	{
-		public:
-			std::mutex mMutex;
+	public:
+		std::mutex mMutex;
+		Renderer::PhysicsDebugDrawer* mPhysicsDrawer = nullptr;
 
-			std::list<btRigidBody*> mColliders;
-			CollisionSet mCollisionPairs;
+		std::list<btRigidBody*> mColliders;
+		CollisionSet mCollisionPairs;
 
-			BulPhysicsEngine();
-			virtual ~BulPhysicsEngine();
+		BulPhysicsEngine();
+		virtual ~BulPhysicsEngine() override;
 
-			void update(float deltaTime) override;
-			void checkForCollisionEvents() override;
-		
-			void addBoxCollider(btRigidBody& pCollider) override;
-			void removeCollider(btRigidBody& pCollider) override;
+		void update(float pDeltaTime) override;
+		void checkForCollisionEvents() override;
 
-			void reset() override;
+		void debugDrawWorld(Maths::FMatrix4& pViewProj);
 
-			void lock();
+		void addCollider(btRigidBody& pCollider) override;
+		void removeCollider(btRigidBody& pCollider) override;
+
+		void createDebugDrawer(void* pRenderer);
+
+		static Physics::Data::RaycastCallback Raycast(Maths::FVector3 pStartPos, Maths::FVector3 pEndPos, CollisionGroups pGroups = CollisionGroups::Default, int pLayermask = -1); //Returns the object that the raycast touches
+
+		void reset() override;
 	};
 }

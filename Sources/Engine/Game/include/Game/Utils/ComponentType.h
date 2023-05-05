@@ -4,8 +4,21 @@ namespace Game::Utils
 {
 	enum class ComponentType
 	{
-		Transform,
+		Camera,
 		MeshRenderer,
-		BoxCollider
+		Animator,
+		Transform,
+		Collider,
+		BoxCollider,
+		CapsuleCollider,
+		Script,
+		Sound,
+		SoundListener,
+		UI,
+		Particle,
+		Light,
+		DirLight,
+		PointLight,
+		SpotLight
 	};
 }

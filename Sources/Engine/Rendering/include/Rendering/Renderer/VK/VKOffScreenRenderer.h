@@ -12,10 +12,16 @@ namespace Rendering::Renderer::VK
 
 			VkImageView mColorImageView;
 			Data::AllocatedImage mColorImage;
-			VkFormat mColorFormat = VK_FORMAT_R8G8B8A8_UNORM;
+			int ColorChannel = 4;
+
+			VkSubresourceLayout subResourceLayout;
 
 			VKOffScreenRenderer(unsigned int pWidth, unsigned int pHeight);
 			~VKOffScreenRenderer();
+
+			void recreateSwapChain(unsigned int pWidth, unsigned int pHeight);
+			void cleanupSwapChain();
+
 			void initGraphicsQueue();
 			void createCommandPool();
 			void createFrameBufferAttachement();

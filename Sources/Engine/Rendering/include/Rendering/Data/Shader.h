@@ -3,7 +3,7 @@
 #include <array>
 #include <vector>
 #include <vulkan/vulkan.h>
-
+#include <string>
 namespace Rendering::Data
 {    
 	struct ShaderModule
@@ -36,8 +36,8 @@ namespace Rendering::Data
 
 		VkPipelineLayout mBuiltLayout = nullptr;
 		std::unordered_map<std::string, ReflectedBinding> mBindings;
-		std::array<VkDescriptorSetLayout, 4> mSetLayouts = { nullptr };
-		std::array<uint32_t, 4> mSetHashes;
+		std::array<VkDescriptorSetLayout, 8> mSetLayouts = { nullptr };
+		std::array<uint32_t, 8> mSetHashes;
 		std::vector<ShaderStage> mStages;
 
 		~Shader();

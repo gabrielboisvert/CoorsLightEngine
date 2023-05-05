@@ -1,5 +1,6 @@
 #include "Maths/Utils.h"
 
+#include <random>
 
 const double Maths::radiansToDegrees(const double pRad)
 {
@@ -36,4 +37,21 @@ const float Maths::fmax(const float pA, const float pB)
 const float Maths::fmin(const float pA, const float pB)
 {
 	return !(pB < pA) ? pA : pB;
+}
+
+const int Maths::randomInt(const int pMin, const int pMax)
+{
+	return rand() % (pMax - pMin + 1) + pMin;
+}
+
+const float Maths::randomFloat(const float pMin, const float pMax)
+{
+	return pMin + static_cast <float> (rand()) / (static_cast <float> (RAND_MAX / (pMax - pMin)));
+}
+
+const int Maths::sign(const float pValue)
+{
+	if (pValue > 0) return 1;
+	if (pValue < 0) return -1;
+	return 0;
 }

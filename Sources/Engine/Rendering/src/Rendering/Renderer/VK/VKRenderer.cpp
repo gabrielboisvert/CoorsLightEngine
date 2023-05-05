@@ -1,9 +1,12 @@
 #define VMA_IMPLEMENTATION
+#define VMA_VULKAN_VERSION 1002000
 
 #include "Rendering/Renderer/VK/VKRenderer.h"
 #include "Rendering/Data/VKTypes.h"
 #include "Rendering/Renderer/VK/VKInitializers.h"
 #include "EngineCore/Service/ServiceLocator.h"
+#include "Rendering/Context/VkDescriptor.h"
+#include "Rendering/Resources/VK/PipeLineBuilder.h"
 
 #include <VkBootstrap/VkBootstrap.h>
 #include <VulkanMemoryAllocator/vk_mem_alloc.h>
@@ -63,7 +66,7 @@ void VKRenderer::initVulkan()
 		std::unique_lock lock(IRenderer::mInstanceLock);
 		auto inst_ret = builder.set_app_name("Vukan Renderer")
 			.request_validation_layers(true/*enableValidationLayers && mInstance == 1*/)
-			.require_api_version(1, 1, 0)
+			.require_api_version(1, 0, 0)
 			.use_default_debug_messenger()
 			.build();
 
@@ -77,21 +80,20 @@ void VKRenderer::initVulkan()
 		}
 		else
 			vkb_inst.instance = mDriver.mInstance;
-	}
+	
 
-	int res = mWindow->createWindowSurface<VkInstance, VkSurfaceKHR*>(mDriver.mInstance, &mSurface);
+		int res = mWindow->createWindowSurface<VkInstance, VkSurfaceKHR*>(mDriver.mInstance, &mSurface);
 
-	vkb::PhysicalDeviceSelector selector{ vkb_inst };
-	vkb::PhysicalDevice physicalDevice = selector
-		.set_minimum_version(1, 1)
-		.set_surface(mSurface)
-		.select()
-		.value();
+		vkb::PhysicalDeviceSelector selector{ vkb_inst };
+		vkb::PhysicalDevice physicalDevice = selector
+			.set_minimum_version(1, 0)
+			.set_surface(mSurface)
+			.select()
+			.value();
 		
-	vkb::DeviceBuilder deviceBuilder{ physicalDevice };
+		vkb::DeviceBuilder deviceBuilder{ physicalDevice };
 
-	{
-		std::unique_lock lock(IRenderer::mInstanceLock);
+	
 		if (mDriver.mDevice == nullptr)
 			mDriver.mPhysicalDevice = physicalDevice.physical_device;
 	}
@@ -200,16 +202,16 @@ void VKRenderer::initSwapchain()
 	vkb::SwapchainBuilder swapchainBuilder{ mDriver.mPhysicalDevice, mDriver.mDevice, mSurface };
 
 	vkb::Swapchain vkbSwapchain = swapchainBuilder
-		.use_default_format_selection()
+		.set_desired_format({ VK_FORMAT_B8G8R8A8_UNORM, VK_COLOR_SPACE_SRGB_NONLINEAR_KHR })
 		.set_desired_present_mode(VK_PRESENT_MODE_MAILBOX_KHR) //VK_PRESENT_MODE_FIFO_KHR -- vsync 60 fps max / VK_PRESENT_MODE_MAILBOX_KHR
 		.set_desired_extent(mWindowExtent.width, mWindowExtent.height)
 		.build()
 		.value();
 
+
 	mSwapchain = vkbSwapchain.swapchain;
 	mSwapchainImages = vkbSwapchain.get_images().value();
 	mSwapchainImageViews = vkbSwapchain.get_image_views().value();
-
 	mSwapchainImageFormat = vkbSwapchain.image_format;
 
 	VkExtent3D depthImageExtent = 
@@ -227,6 +229,11 @@ void VKRenderer::initSwapchain()
 	vmaCreateImage(mAllocator, &dimg_info, &dimg_allocinfo, &mDepthImage.mImage, &mDepthImage.mAllocation, nullptr);
 
 	VkImageViewCreateInfo dview_info = VKInit::imageviewCreateInfo(mDepthFormat, mDepthImage.mImage, VK_IMAGE_ASPECT_DEPTH_BIT);
+	if (mDepthFormat >= VK_FORMAT_D16_UNORM_S8_UINT) 
+	{
+		dview_info.subresourceRange.aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
+	}
+	
 	vkCreateImageView(mDriver.mDevice, &dview_info, nullptr, &mDepthImageView);
 }
 
@@ -302,18 +309,20 @@ void VKRenderer::initDefaultRenderpass()
 	VkSubpassDependency dependency = {};
 	dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
 	dependency.dstSubpass = 0;
-	dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-	dependency.srcAccessMask = 0;
-	dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-	dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+	dependency.srcStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+	dependency.srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+	dependency.dstStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+	dependency.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT;
+	dependency.dependencyFlags = 0;
 
 	VkSubpassDependency depth_dependency = {};
 	depth_dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
 	depth_dependency.dstSubpass = 0;
-	depth_dependency.srcStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+	depth_dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
 	depth_dependency.srcAccessMask = 0;
-	depth_dependency.dstStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
-	depth_dependency.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+	depth_dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+	depth_dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_COLOR_ATTACHMENT_READ_BIT;
+	depth_dependency.dependencyFlags = 0;
 
 	VkSubpassDependency dependencies[2] = { dependency, depth_dependency };
 
@@ -412,7 +421,7 @@ void VKRenderer::beginFrame()
 	clearValue.color = { { 0.0f, 0.0f, 0.0f, 1.0f } };
 	
 	VkClearValue depthClear;
-	depthClear.depthStencil.depth = 1.f;
+	depthClear.depthStencil = {1.0f, 0};
 
 	VkClearValue clearValues[] = { clearValue, depthClear };
 
@@ -468,7 +477,7 @@ void VKRenderer::endFrame()
 
 	if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || mFramebufferResized)
 	{
-		mFramebufferResized = false;
+		//mFramebufferResized = false;
 		recreateSwapChain();
 	}
 	else if (result != VK_SUCCESS)
@@ -476,6 +485,7 @@ void VKRenderer::endFrame()
 
 	mFrameNumber = (mFrameNumber + 1) % FRAME_OVERLAP;
 }
+
 
 void VKRenderer::cleanUp()
 {
@@ -493,10 +503,35 @@ void VKRenderer::cleanUp()
 
 		if (IRenderer::mInstance == 0)
 		{
+			if (Rendering::Context::DescriptorCache::mDescriptorLayoutCache.mLayoutCache.size() != 0)
+			{
+				Rendering::Context::DescriptorCache::mDescriptorLayoutCache.cleanup();
+				Rendering::Context::DescriptorCache::mDescriptorLayoutCache = {};
+			}
+
+			if (Rendering::Context::DescriptorCache::mDescriptorAllocator.mUsedPools.size() != 0)
+			{
+				Rendering::Context::DescriptorCache::mDescriptorAllocator.cleanup();
+				Rendering::Context::DescriptorCache::mDescriptorAllocator = {};
+			}
+
+			#ifdef NSHIPPING
+			if (Rendering::Renderer::Resources::VK::PipeLineBuilder::mModuleCache.mModuleCache.size() != 0)
+			{
+				Rendering::Renderer::Resources::VK::PipeLineBuilder::mModuleCache.mModuleCache.clear();
+				Rendering::Renderer::Resources::VK::PipeLineBuilder::mModuleCache = {};
+			}
+			#endif
+
 			vmaDestroyAllocator(mAllocator);
 			vkDestroyDevice(mDriver.mDevice, nullptr);
 			vkb::destroy_debug_utils_messenger(mDriver.mInstance, mDebugMessenger);
 			vkDestroyInstance(mDriver.mInstance, nullptr);
+
+			mAllocator = nullptr;
+			mDriver.mDevice = nullptr;
+			mDriver.mInstance = nullptr;
+			mDriver.mInstance = nullptr;
 		}
 	}
 }
@@ -510,10 +545,8 @@ void VKRenderer::recreateSwapChain()
 	while (width == 0 || height == 0)
 		mWindow->getFramebufferSize(&width, &height);
 	
-	
 	vkDeviceWaitIdle(mDriver.mDevice);
 	cleanupSwapChain();
-
 	initSwapchain();
 	initFramebuffers();
 }

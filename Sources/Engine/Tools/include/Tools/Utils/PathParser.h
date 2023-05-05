@@ -1,7 +1,6 @@
 #pragma once
 
 #include <string>
-#include <QtCore/qstring.h>
 
 namespace Tools::Utils
 {
@@ -14,12 +13,14 @@ namespace Tools::Utils
 			UNKNOWN,
 			MODEL,
 			TEXTURE,
-			SHADER,
 			MATERIAL,
 			SOUND,
 			SCENE,
 			SCRIPT,
-			FONT
+			FONT,
+			UI,
+			PREFAB,
+			PARTICLE
 		};
 
 		PathParser() = delete;
@@ -37,7 +38,5 @@ namespace Tools::Utils
 		static std::string fileTypeToString(EFileType pFileType);
 
 		static EFileType getFileType(const std::string& pPath);
-
-		static EFileType getFileType(const QString& pExt);
 	};
 }

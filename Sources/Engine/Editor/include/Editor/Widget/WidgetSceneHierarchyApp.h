@@ -11,6 +11,7 @@ namespace Editor::Widget
 
 			WidgetSceneHierarchyApp(QSettings& pSetting, WidgetInspectorApp& pInspector, QWidget* pParent = nullptr);
 			void treeItemClick(const QModelIndex& index);
-			void updateTree();
+
+			void clearTree();
 	};
 }

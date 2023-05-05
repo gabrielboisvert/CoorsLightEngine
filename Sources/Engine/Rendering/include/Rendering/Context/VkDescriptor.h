@@ -7,7 +7,7 @@ namespace Rendering::Context
 	class DescriptorAllocator 
 	{
 	public:
-
+		static std::mutex instance;
 		struct PoolSizes 
 		{
 			std::vector<std::pair<VkDescriptorType, float>> mSizes =

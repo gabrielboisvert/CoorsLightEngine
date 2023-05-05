@@ -55,7 +55,6 @@ void Shader::reflectLayout()
 	std::vector<DescriptorSetLayoutData> set_layouts;
 
 	std::vector<VkPushConstantRange> constant_ranges;
-
 	for (auto& s : mStages) {
 
 		SpvReflectShaderModule spvmodule;
@@ -89,7 +88,7 @@ void Shader::reflectLayout()
 
 				layout_binding.stageFlags = static_cast<VkShaderStageFlagBits>(spvmodule.shader_stage);
 
-				ReflectedBinding reflected;
+				ReflectedBinding reflected{};
 				reflected.mBinding = layout_binding.binding;
 				reflected.mSet = refl_set.set;
 				reflected.mType = layout_binding.descriptorType;
@@ -122,9 +121,9 @@ void Shader::reflectLayout()
 		}
 	}
 
-	std::array<DescriptorSetLayoutData, 4> merged_layouts;
+	std::array<DescriptorSetLayoutData, 8> merged_layouts;
 
-	for (int i = 0; i < 4; i++) {
+	for (int i = 0; i < 8; i++) {
 
 		DescriptorSetLayoutData& ly = merged_layouts[i];
 
@@ -147,7 +146,7 @@ void Shader::reflectLayout()
 				}
 			}
 		}
-		for (auto [k, v] : binds)
+		for (auto& [k, v] : binds)
 			ly.mBindings.push_back(v);
 
 		//sort the bindings, for hash purposes
@@ -180,9 +179,9 @@ void Shader::reflectLayout()
 	mesh_pipeline_layout_info.pPushConstantRanges = constant_ranges.data();
 	mesh_pipeline_layout_info.pushConstantRangeCount = (uint32_t)constant_ranges.size();
 
-	std::array<VkDescriptorSetLayout, 4> compactedLayouts;
+	std::array<VkDescriptorSetLayout, 8> compactedLayouts{};
 	int s = 0;
-	for (int i = 0; i < 4; i++) {
+	for (int i = 0; i < 8; i++) {
 		if (mSetLayouts[i] != VK_NULL_HANDLE) {
 			compactedLayouts[s] = mSetLayouts[i];
 			s++;

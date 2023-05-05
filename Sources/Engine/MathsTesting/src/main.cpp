@@ -1,3 +1,5 @@
+#ifdef NSHIPPING
+
 #include <catch2/catch_session.hpp>
 
 int main(int argc, char* argv[])
@@ -77,3 +79,12 @@ int main(int argc, char* argv[])
 	// running catch test with command line argument + custom argument from main
 	return Catch::Session().run((int)arguments.size(), &arguments[0]);
 }
+
+#endif
+
+#ifdef SHIPPING
+int main()
+{
+	return 0;
+}
+#endif

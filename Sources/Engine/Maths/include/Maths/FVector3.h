@@ -117,6 +117,8 @@ namespace Maths
 
 		static FVector3 lerp(const FVector3& pA, const FVector3& pB, float pT);
 
+		FVector3 lerp(const FVector3& pB, float pT);
+
 		static float angleBetween(const FVector3& pFrom, const FVector3& pTo);
 
 		static FVector3 vectorMax(const FVector3& pA, const FVector3& pB);

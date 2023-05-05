@@ -4,17 +4,27 @@
 #include <Bullet/btBulletDynamicsCommon.h>
 #include <Bullet/BulletCollision/BroadphaseCollision/btBroadphaseInterface.h>
 #include <Bullet/BulletDynamics/ConstraintSolver/btBatchedConstraints.h>
-
-using CollisionEnterCallback = std::function<void(btRigidBody*, btRigidBody*, void*, btPersistentManifold*)>;
-using CollisionExitCallback = std::function<void(btRigidBody*, btRigidBody*, void*, btPersistentManifold*)>;
+#include "Maths/FVector3.h"
+using CollisionEnterCallback = std::function<void(void*, void*, btPersistentManifold*)>;
+using CollisionExitCallback = std::function<void(void*, void*, btPersistentManifold*)>;
 
 namespace Physics::Data
 {
+	struct RaycastCallback
+	{
+		Maths::FVector3 mCollisionPoint;
+		Maths::FVector3 mCollisionNormal;
+		void* mCollisionObject;
+	};
+
 	struct CollisionCallbacks
 	{
 		CollisionEnterCallback enter;
 		CollisionEnterCallback stay;
 		CollisionExitCallback exit;
 		void* physicsObject;
+		void* rigidbody;
 	};
+
+
 }

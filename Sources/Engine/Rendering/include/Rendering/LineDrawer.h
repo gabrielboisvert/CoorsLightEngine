@@ -1,45 +1,34 @@
 #pragma once
-#include "Renderer/VK/VKRenderer.h"
-#include <string>
-#include <vector>
-#include <array>
-#include <vulkan/vulkan_core.h>
-#include "Maths/FVector3.h"
-#include "Rendering/Buffers/VK/VKUniformBuffer.h"
-#include "Rendering/Data/UniformData.h"
-#include "Rendering/Buffers/VK/VKVertexBuffer.h"
 #include "Rendering/Geometry/DebugVertex.h"
+#include "Rendering/Data/UniformData.h"
+#include "Rendering/Buffers/VK/VKUniformBuffer.h"
+#include "Rendering/Data/Material.h"
+#include "Rendering/Buffers/VK/VKDynamicVertexBuffer.h"
+#include "Renderer/VK/VKRenderer.h"
 
 namespace Rendering
 {
 	class LineDrawer
 	{
 		public:
-			VkPipeline mGraphicsPipeline = nullptr;
-			VkPipelineLayout mPipelineLayout = nullptr;
-			VkDescriptorSetLayout mObjectSetLayout;
-			std::vector<Geometry::DebugVertex> mLineVertice;
+			static const int MAX_LINE = 10000;
 
-			Buffers::VK::VKVertexBuffer* mVertexBuffer = nullptr;
+			Rendering::Renderer::VK::VKRenderer& mRenderer;
+			std::vector<Rendering::Geometry::DebugVertex> mLineVertices;
+			Rendering::Data::Material mMat;
+			Rendering::Buffers::VK::VKUniformBuffer<Rendering::Data::UniformData> mUniformBuffer;
+			Rendering::Buffers::VK::VKDynamicVertexBuffer* mVertexBuffer = nullptr;
 
-			Buffers::VK::VKUniformBuffer<Rendering::Data::UniformData> mUniform;
-			
-			Renderer::VK::VKRenderer& mRenderer;
-			Rendering::Data::UniformData& mData;
+			LineDrawer(Rendering::Renderer::VK::VKRenderer& pRenderer);
 
-			LineDrawer(Renderer::VK::VKRenderer& pRenderer, Rendering::Data::UniformData& pData, const char* pVertex, const char* pFragment);
 			~LineDrawer();
 
-			static std::vector<char> readFile(const std::string& pFilename);
-			VkShaderModule createShaderModule(const std::vector<char>& pCode);
-			void createGraphicsPipeline(const char* pVertex, const char* pFragment);
-			void createDescriptorSetLayout();
-
 			void drawLine(const Maths::FVector3& pFrom, const Maths::FVector3& pTo, const Maths::FVector3& pColor);
-			void flushLines();
-			void setVP();
 
-			void createVertexBuffer();
+			void flushLines();
+
+			void updateViewProj(Maths::FMatrix4 pViewProj);
+
 			void reset();
 	};
 }

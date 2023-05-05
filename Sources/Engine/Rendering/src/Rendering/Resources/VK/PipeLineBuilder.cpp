@@ -60,6 +60,7 @@ VkPipeline PipeLineBuilder::buildPipeline(VkRenderPass pPass)
 
 	VkPipeline newPipeline = nullptr;
 
+	VkDevice mDevice = service(VkDevice);
 	if (vkCreateGraphicsPipelines(service(VkDevice), VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &newPipeline) != VK_SUCCESS)
 	{
 		std::cout << "failed to create pipeline\n";
@@ -77,17 +78,17 @@ void PipeLineBuilder::clearVertexInput()
 	mVertexInputInfo.vertexBindingDescriptionCount = 0;
 }
 
-Rendering::Data::Material PipeLineBuilder::initPipeLine(const std::string& pVertex, const std::string& pfrag, VkRenderPass pPass, bool pClearVertex, bool pDebugVertex)
+Rendering::Data::Material PipeLineBuilder::initPipeLine(const std::string& pVertex, const std::string& pfrag, VkRenderPass pPass, bool pClearVertex, bool pDebugVertex, bool pDethTest, bool pStencil, bool pParticle)
 {
 	Data::Shader* sh = new Data::Shader;
 	sh->addStage(mModuleCache.getShader(pVertex.c_str()), VK_SHADER_STAGE_VERTEX_BIT);
 	sh->addStage(mModuleCache.getShader(pfrag.c_str()), VK_SHADER_STAGE_FRAGMENT_BIT);
 	sh->reflectLayout();
 
-	return initPipeLine(*sh, pPass, pClearVertex, pDebugVertex);
+	return initPipeLine(*sh, pPass, pClearVertex, pDebugVertex, pDethTest, pStencil, pParticle);
 }
 
-Rendering::Data::Material PipeLineBuilder::initPipeLine(Data::Shader& pShader, VkRenderPass pPass, bool pClearVertex, bool pDebugVertex)
+Rendering::Data::Material PipeLineBuilder::initPipeLine(Data::Shader& pShader, VkRenderPass pPass, bool pClearVertex, bool pDebugVertex, bool pDethTest, bool pStencil, bool pParticle)
 {
 	PipeLineBuilder pipelineBuilder;
 	
@@ -142,7 +143,32 @@ Rendering::Data::Material PipeLineBuilder::initPipeLine(Data::Shader& pShader, V
 	pipelineBuilder.mColorBlendAttachment.alphaBlendOp = VK_BLEND_OP_ADD;
 
 
-	pipelineBuilder.mDepthStencil = Rendering::Renderer::VK::VKInit::depthStencilCreateInfo(true, true, VK_COMPARE_OP_LESS_OR_EQUAL);
+	pipelineBuilder.mDepthStencil = Rendering::Renderer::VK::VKInit::depthStencilCreateInfo(pDethTest, true, VK_COMPARE_OP_LESS_OR_EQUAL);
+	if (pParticle)
+		pipelineBuilder.mDepthStencil.depthWriteEnable = VK_FALSE;
+
+
+	//Stencil buffer
+	pipelineBuilder.mDepthStencil.stencilTestEnable = VK_TRUE;
+	pipelineBuilder.mDepthStencil.back.compareOp = VK_COMPARE_OP_ALWAYS;
+	pipelineBuilder.mDepthStencil.back.failOp = VK_STENCIL_OP_REPLACE;
+	pipelineBuilder.mDepthStencil.back.depthFailOp = VK_STENCIL_OP_REPLACE;
+	pipelineBuilder.mDepthStencil.back.passOp = VK_STENCIL_OP_REPLACE;
+	pipelineBuilder.mDepthStencil.back.compareMask = 0xff;
+	pipelineBuilder.mDepthStencil.back.writeMask = 0xff;
+	pipelineBuilder.mDepthStencil.back.reference = 1;
+	pipelineBuilder.mDepthStencil.front = pipelineBuilder.mDepthStencil.back;
+
+	if (pStencil)
+	{
+		// Outline pass
+		pipelineBuilder.mDepthStencil.back.compareOp = VK_COMPARE_OP_NOT_EQUAL;
+		pipelineBuilder.mDepthStencil.back.failOp = VK_STENCIL_OP_KEEP;
+		pipelineBuilder.mDepthStencil.back.depthFailOp = VK_STENCIL_OP_KEEP;
+		pipelineBuilder.mDepthStencil.back.passOp = VK_STENCIL_OP_REPLACE;
+		pipelineBuilder.mDepthStencil.front = pipelineBuilder.mDepthStencil.back;
+	}
+
 
 	VkPipeline result = pipelineBuilder.buildPipeline(pPass);
 

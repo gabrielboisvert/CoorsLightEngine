@@ -36,7 +36,7 @@ namespace Rendering::Renderer::VK::VKInit
 
 	VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo();
 
-	VkImageCreateInfo imageCreateInfo(VkFormat format, VkImageUsageFlags usageFlags, VkExtent3D extent);
+	VkImageCreateInfo imageCreateInfo(VkFormat format, VkImageUsageFlags usageFlags, VkExtent3D extent, VkImageTiling tiling = VK_IMAGE_TILING_OPTIMAL);
 
 	VkImageViewCreateInfo imageviewCreateInfo(VkFormat format, VkImage image, VkImageAspectFlags aspectFlags);
 

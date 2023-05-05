@@ -19,4 +19,10 @@ namespace Maths
 	const float fmax(const float pA, const float pB);
 
 	const float fmin(const float pA, const float pB);
+
+	const int randomInt(const int pMin, const int pMax);
+
+	const float randomFloat(const float pMin, const float pMax);
+
+	const int sign(const float pValue);
 }

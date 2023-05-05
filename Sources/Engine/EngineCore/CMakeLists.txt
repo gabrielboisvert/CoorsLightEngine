@@ -44,3 +44,8 @@ endforeach( project_i )
 foreach( include_i ${THIRD_PARTY_INCLUDE})
 	include_directories(${PROJECT_NAME} PRIVATE ${DEPENDS_DIR}/${include_i}/${INCLUDE_FOLDE})
 endforeach( include_i )
+
+add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+		${PROJECT_INCLUDE_DIR}
+        $<TARGET_FILE_DIR:${MAIN_PROJECT_NAME}>/Resources/Editor/Build/include/)

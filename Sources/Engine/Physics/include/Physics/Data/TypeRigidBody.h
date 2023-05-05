@@ -6,6 +6,7 @@ namespace Physics::Data
 	{
 		E_DYNAMIC,
 		E_STATIC,
-		E_KINEMATIC
+		E_KINEMATIC,
+		E_TRIGGER = 4
 	};
 }

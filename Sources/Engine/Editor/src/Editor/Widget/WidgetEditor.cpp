@@ -11,14 +11,11 @@
 #include <QtWidgets/qtoolbar.h>
 #include <QtWidgets/qapplication.h>
 #include <QtDocking/DockAreaWidget.h>
-
-
 #include "Editor/Widget/WidgetEditor.h"
 #include "Tools/Utils/Define.h"
 #include "Editor/Resources/Loader/StyleSheetLoader.h"
 #include "Editor/Widget/WidgetMenuSperarator.h"
 #include "Editor/Widget/WidgetNewScene.h"
-#include "Rendering/Data/UniformData.h"
 #include "Maths/Utils.h"
 #include "Maths/FVector3.h"
 #include "Rendering/Renderer/VK/VKOffScreenRenderer.h"
@@ -28,7 +25,16 @@
 #include "Rendering/Data/UniformData.h"
 #include "Rendering/Buffers/VK/VKUniformBuffer.h"
 #include "Rendering/Resources/Texture.h"
+#include "Rendering/Resources/Material.h"
+#include "Rendering/Resources/UI.h"
 #include "Game/SceneSys/SceneManager.h"
+#include "EngineCore/EventSystem/InputManager.h"
+#include <rapidjson/stringbuffer.h>
+#include <rapidjson/prettywriter.h>
+#include "Scripting/ScriptInterpreter.h"
+#include "Game/Component/CPSoundListener.h"
+#include <fstream>
+#include <rapidjson/document.h>
 
 using namespace Editor::Widget;
 
@@ -40,29 +46,64 @@ Editor::Widget::WidgetEditor::WidgetEditor(Core::EditorApp* pApp, const std::str
 	mProjectSettings(QString(pProjectPath.c_str()) + "/" + QString(pProjectName.c_str()) + "." + Define::PROJECT_EXTENSION, QSettings::IniFormat),
     mEngineApp(800, 800)
 {
-    service(EngineCore::Thread::ThreadPool).queueJob([this] 
-    {
-        mEngineApp.run();
-    });
-
+    provideService(Editor::Widget::WidgetEditor, *this);
+    provideService(Data::ProjectLocation, mLocation);
 
 	setTheme();
 	setWindowDecoration();
 
 	initWindowControlButtons();
-    initSceneLabel();
+    
     initMainToolBar();
     initCenterContent();
+    service(EngineCore::Thread::ThreadPool).queueJob([this]
+        {
+            mScene->run();
+        });
+
+    service(EngineCore::Thread::ThreadPool).queueJob([this]
+        {
+            mEngineApp.run();
+        });
 
     readProjectSettings();
+    initSceneLabel();
     show();
 
-    provideService(Editor::Widget::WidgetEditor, *this);
     
     service(EngineCore::Thread::ThreadPool).queueJob([this] 
     {
         loadResources(mLocation.mFolder);
     });
+
+    service(EngineCore::EventSystem::InputManager).bindActionCallBack(  EngineCore::EventSystem::KState::PRESS,
+                                                                        EngineCore::EventSystem::Key::ESCAPE, 
+                                                                        [this] 
+        {
+            if (!pressOnce)
+            {
+                pressOnce = true;
+            }
+            else
+                return;
+
+            if (mEngineApp.mMouseLock)
+            {
+                mEngineApp.mMouseLock = false;
+                mEngineApp.mWindow.changeCursorMode(true, false);
+            }
+            else
+                quit(); 
+        });
+
+    service(EngineCore::EventSystem::InputManager).bindActionCallBack(EngineCore::EventSystem::KState::RELEASE,
+        EngineCore::EventSystem::Key::ESCAPE,
+        [this]
+        {
+ 
+            pressOnce = false;
+            
+        });
 }
 
 WidgetEditor::~WidgetEditor()
@@ -80,6 +121,8 @@ void WidgetEditor::setWindowDecoration()
 	setMinimumSize(mSettings.value("MinWidth").toInt(), mSettings.value("MinHeight").toInt());
 	setWindowFlags(Qt::Window | Qt::FramelessWindowHint);/*| Qt::CustomizeWindowHint);*/
 }
+
+
 
 void WidgetEditor::initWindowControlButtons()
 {
@@ -156,6 +199,25 @@ void WidgetEditor::createFileMenu()
     connect(newAction, &QAction::triggered, this, &WidgetEditor::openProject);
 
     {
+        WidgetMenuSeperator* sepa = new WidgetMenuSeperator(mSettings, mSettings.value("CategoryBuild").toString(), mSettings.value("SeparatorIcon").toString(), mFileMenu);
+        mFileMenu->addAction(sepa->mAction);
+    }
+
+    newAction = createAction(QIcon(mSettings.value("MenuFileBuildIcon").toString()), mSettings.value("MenuFileBuild").toString(), mSettings.value("MenuFileBuildTips").toString(), QKeySequence::UnknownKey, *mFileMenu);
+    connect(newAction, &QAction::triggered, this, [this]
+    {
+        QString dir = QFileDialog::getExistingDirectory(this, tr("Open Directory"), mLocation.mFolder, QFileDialog::ShowDirsOnly | QFileDialog::DontResolveSymlinks);
+        if (dir.isEmpty())
+            return;
+        
+        mConsole->toggleView(true);
+        service(EngineCore::Thread::ThreadPool).queueJob([this, dir]
+        {
+            createBuild(dir);
+        });
+    });
+
+    {
         WidgetMenuSeperator* sepa = new WidgetMenuSeperator(mSettings, mSettings.value("CategoryExit").toString(), mSettings.value("SeparatorIcon").toString(), mFileMenu);
         mFileMenu->addAction(sepa->mAction);
     }
@@ -169,8 +231,14 @@ void WidgetEditor::createViewMenu()
     QMenu* mViewMenu = menuBar()->addMenu(mSettings.value("MenuView").toString());
     QAction* newAction = nullptr;
 
-    newAction = createAction(QIcon(), mSettings.value("MenuViewViewport").toString(), mSettings.value("MenuViewViewportTips").toString(), QKeySequence::UnknownKey, *mViewMenu);
+    newAction = createAction(QIcon(), mSettings.value("MenuViewGame").toString(), mSettings.value("MenuViewGameTips").toString(), QKeySequence::UnknownKey, *mViewMenu);
     connect(newAction, &QAction::triggered, this, [newAction, this] { mWindow->toggleView(newAction->isChecked()); });
+    newAction->setCheckable(true);
+    newAction->setChecked(true);
+    viewActions["game"] = newAction;
+
+    newAction = createAction(QIcon(), mSettings.value("MenuViewScene").toString(), mSettings.value("MenuViewSceneTips").toString(), QKeySequence::UnknownKey, *mViewMenu);
+    connect(newAction, &QAction::triggered, this, [newAction, this] { mScene->toggleView(newAction->isChecked()); });
     newAction->setCheckable(true);
     newAction->setChecked(true);
     viewActions["scene"] = newAction;
@@ -205,7 +273,10 @@ void WidgetEditor::initSceneLabel()
     QString scenePath = mLocation.mFolder + "/" + mProjectSettings.value("StartingMap").toString() + "." + Define::SCENE_EXTENSION;
     mLevelLabel.init(this, mSettings, menuBar()->size().height() + 1, scenePath, mProjectSettings.value("StartingMap").toString().split("/").last());
     
-    service(Game::SceneSys::SceneManager).loadScene(Utils::qStringToStdString(scenePath).c_str());
+    Game::SceneSys::SceneManager& sceneManager = service(Game::SceneSys::SceneManager);
+    sceneManager.mProjectPath = Utils::qStringToStdString(mLocation.mFolder);
+    sceneManager.loadScene(Utils::qStringToStdString(scenePath).c_str());
+    parseMap(Utils::qStringToStdString(scenePath));
 }
 
 void WidgetEditor::initMainToolBar()
@@ -232,7 +303,16 @@ void WidgetEditor::initMainToolBar()
 
     mPlayState.init(mSettings.value("PlayIcon").toString(), mSettings.value("PauseIcon").toString(), playToolBar->addAction(""));
     mPlayState.setTips(mSettings.value("PlayTips").toString());
-    connect(mPlayState.mAction, &QAction::triggered, this, &WidgetEditor::play);
+    connect(mPlayState.mAction, &QAction::triggered, this, [this] 
+        {
+            if (!playOnceClick)
+            {
+                copyScene(true);
+                service(EngineCore::Core::EngineApp).mMouseLock = true;
+            }
+
+            play();
+        });
 
     mPlayFrameState.init(mSettings.value("PlayFrameIcon").toString(), mSettings.value("PlayFrameIconActif").toString(), playToolBar->addAction(""));
     mPlayFrameState.setTips(mSettings.value("PlayFrameTips").toString());
@@ -242,7 +322,12 @@ void WidgetEditor::initMainToolBar()
     mStopState.init(mSettings.value("StopIcon").toString(), mSettings.value("StopActifIcon").toString(), playToolBar->addAction(""));
     mStopState.setTips(mSettings.value("StopTips").toString());
     mStopState.setDisabled(true);
-    connect(mStopState.mAction, &QAction::triggered, this, &WidgetEditor::stop);
+    connect(mStopState.mAction, &QAction::triggered, this, [this]
+        {
+            copyScene(false);
+            service(EngineCore::Core::EngineApp).mMouseLock = false;
+            stop();
+        });
 
     const QIcon ToogleCameraIcon(mSettings.value("ToogleCameraIcon").toString());
     action = playToolBar->addAction(ToogleCameraIcon, "");
@@ -259,8 +344,8 @@ void WidgetEditor::initCenterContent()
     mDockManager->setStyleSheet(Resources::Loaders::StyleSheetLoader::loadStyleSheet(mSettings.value("DockingStyleSheet").toString()));
 
     //Window
-    mWindow = new WidgetSceneApp(mEngineApp, mSettings);
-    connect(mWindow, &ads::CDockWidget::closed, this, [this]{ viewActions["scene"]->setChecked(false); });
+    mWindow = new WidgetGameApp(&mEngineApp);
+    connect(mWindow, &ads::CDockWidget::closed, this, [this]{ viewActions["game"]->setChecked(false); });
 
     mInspector = new WidgetInspectorApp(mSettings);
     connect(mInspector, &ads::CDockWidget::closed, this, [this] { viewActions["inspector"]->setChecked(false); });
@@ -268,23 +353,40 @@ void WidgetEditor::initCenterContent()
     mHierarchy = new WidgetSceneHierarchyApp(mSettings, *mInspector);
     connect(mHierarchy, &ads::CDockWidget::closed, this, [this] { viewActions["hierarchy"]->setChecked(false); });
 
+    mScene = new WidgetSceneApp(mSettings, mHierarchy->mTree);
+    connect(mScene, &ads::CDockWidget::closed, this, [this] { viewActions["scene"]->setChecked(false); });
+
     mContent = new WidgetContentBrowserApp(mSettings, mLocation);
     connect(mContent, &ads::CDockWidget::closed, this, [this] { viewActions["browser"]->setChecked(false); });
 
     mConsole = new WidgetConsoleApp(mSettings);
     connect(mConsole, &ads::CDockWidget::closed, this, [this] { viewActions["console"]->setChecked(false); });
     
+    mMaterial = new WidgetMaterialApp(mSettings);
+    connect(mMaterial, &ads::CDockWidget::closed, this, [this] { mMaterial->close(); });
+    
+    mParticle = new WidgetParticleApp(mSettings);
+    connect(mParticle, &ads::CDockWidget::closed, this, [this] { mParticle->close(); });
+
+    mUI = new WidgetUIApp(mSettings);
+    connect(mUI, &ads::CDockWidget::closed, this, [this] { mUI->close(); });
+
     mModelView = new WidgetModelViewerApp(mSettings);
     
     
     
     //Centering
-    ads::CDockAreaWidget* areaCentral = mDockManager->addDockWidget(ads::CenterDockWidgetArea, mWindow);
+    ads::CDockAreaWidget* areaCentral = mDockManager->addDockWidget(ads::CenterDockWidgetArea, mScene);
     ads::CDockAreaWidget* areaLeft = mDockManager->addDockWidget(ads::LeftDockWidgetArea, mHierarchy, areaCentral);
     ads::CDockAreaWidget* areaRight = mDockManager->addDockWidget(ads::RightDockWidgetArea, mInspector, areaCentral);
     ads::CDockAreaWidget* areaBottom = mDockManager->addDockWidget(ads::BottomDockWidgetArea, mContent);
 
     mDockManager->addDockWidgetTabToArea(mModelView, areaCentral);
+    mDockManager->addDockWidgetTabToArea(mWindow, areaCentral);
+    mDockManager->addDockWidgetTabToArea(mMaterial, areaCentral);
+    mDockManager->addDockWidgetTabToArea(mParticle, areaCentral);
+    mDockManager->addDockWidgetTabToArea(mUI, areaCentral);
+
     mDockManager->addDockWidgetTabToArea(mConsole, areaBottom);
 
     // Resizewindow
@@ -292,8 +394,12 @@ void WidgetEditor::initCenterContent()
     mDockManager->setSplitterSizes(areaBottom, { (int)(height() * 0.70f), (int)(height() * 0.30f)});
 
     //Disabled window
+    mScene->toggleView(true);
     mContent->toggleView(true);
     mModelView->toggleView(false);
+    mMaterial->toggleView(false);
+    mParticle->toggleView(false);
+    mUI->toggleView(false);
 }
 
 void WidgetEditor::readProjectSettings()
@@ -365,6 +471,46 @@ void WidgetEditor::newSceneDialog()
     mApp->installEventFilter(this);
 }
 
+void WidgetEditor::clearScene()
+{
+    //clear old scene
+    std::mutex mtx;
+    std::condition_variable cv;
+    bool ready = false;
+    mEngineApp.mainThreadAction.pushFunction([this, &mtx, &ready, &cv]
+        {
+            Game::Component::CPCamera::mWorldCamera = nullptr;
+            std::unique_lock<std::mutex> lck(mtx);
+            ready = true;
+            cv.notify_all();
+        });
+
+    {
+        std::unique_lock<std::mutex> lck(mtx);
+        while (!ready) cv.wait(lck);
+    }
+
+    ready = false;
+    mScene->clearThreadAction.pushFunction([this, &mtx, &ready, &cv]
+        {
+            mScene->renderer->waitForCleanUp();
+
+            mInspector->updateInspector(nullptr);
+            mHierarchy->clearTree();
+            mHierarchy->mTree.clearSelection();
+            mScene->mTreeItem->mSelectedActor = nullptr;
+
+
+            std::unique_lock<std::mutex> lck(mtx);
+            ready = true;
+            cv.notify_all();
+        });
+    {
+        std::unique_lock<std::mutex> lck(mtx);
+        while (!ready) cv.wait(lck);
+    }
+}
+
 void WidgetEditor::openScene()
 {
     std::string filter = "Level File (*." + std::string(Define::SCENE_EXTENSION) + ")";
@@ -379,15 +525,47 @@ void WidgetEditor::openScene()
         return;
 
     QString fileName = dialog.selectedFiles().first();
-    if (!fileName.isEmpty())
-    {
-        mLevelLabel.mFileName = fileName;
-        mLevelLabel.mMapTitle->setText(QFileInfo(fileName).baseName());
-    }
+    if (fileName.isEmpty())
+        return;
+    
+    clearScene();
+
+    mLevelLabel.mFileName = fileName;
+    mLevelLabel.mMapTitle->setText(QFileInfo(fileName).baseName());
+
+    service(Game::SceneSys::SceneManager).loadScene(Utils::qStringToStdString(fileName).c_str());
+    mEngineApp.initScene();
+    mScene->initLight();
+    parseMap(Utils::qStringToStdString(fileName));
+  
+}
+
+void WidgetEditor::openSceneWithPath(QString pMap)
+{
+    std::mutex mtx;
+    std::condition_variable cv;
+    bool ready = false;
+    
+    clearScene();
+
+    mLevelLabel.mFileName = pMap;
+    mLevelLabel.mMapTitle->setText(QFileInfo(pMap).baseName());
+
+    service(Game::SceneSys::SceneManager).loadScene(Utils::qStringToStdString(pMap).c_str());
+    mEngineApp.initScene();
+    mScene->initLight();
+    parseMap(Utils::qStringToStdString(pMap));
+   
 }
 
 bool WidgetEditor::save()
 {
+    if (mEngineApp.mPlaying)
+    {
+        QMessageBox::warning(this, tr("Application"), tr("Can\'t save scene during simulation"), QMessageBox::Ok);
+        return true;
+    }
+
     if (mLevelLabel.mFileName.isEmpty())
         return saveAs();
 
@@ -397,6 +575,12 @@ bool WidgetEditor::save()
 
 bool WidgetEditor::saveAs()
 {
+    if (mEngineApp.mPlaying)
+    {
+        QMessageBox::warning(this, tr("Application"), tr("Can\'t save scene during simulation"), QMessageBox::Ok);
+        return true;
+    }
+
     QFileDialog dialog(this);
     dialog.setWindowModality(Qt::WindowModal);
     dialog.setAcceptMode(QFileDialog::AcceptSave);
@@ -427,8 +611,23 @@ bool WidgetEditor::saveFile(const QString& pFileName)
     QSaveFile file(QUrl::fromLocalFile(pFileName).toLocalFile());
     if (file.open(QIODevice::WriteOnly | QIODevice::Text))
     {
-        file.write("Cock");
+        rapidjson::StringBuffer ss;
+        rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(ss);
 
+        writer.StartObject();
+
+        writer.Key("Actors");
+        writer.StartArray();
+
+        mHierarchy->mTree.serializeItem(writer);
+
+        writer.EndArray();
+        writer.EndObject();
+
+        std::string s = ss.GetString();
+        file.write(s.c_str());
+        
+        
         if (!file.commit())
         {
             errorMessage = tr("Cannot write file %1:\n%2.")
@@ -455,10 +654,28 @@ void WidgetEditor::newProject()
     if (maybeSave())
     {
         writeProjectSettings();
+        mDockManager->removeDockWidget(mHierarchy);
+        {
+            mEngineApp.close();
+            std::unique_lock<std::mutex> lck(mEngineApp.closeMut);
+            while (!mEngineApp.closed) mEngineApp.cv.wait(lck);
+        }
 
-        
-        mEngineApp.close();
+        {
+            mScene->close();
+            std::unique_lock<std::mutex> lck(mScene->closeMut);
+            while (!mScene->closed) mScene->cv.wait(lck);
+        }
+        delete mHierarchy;
+
+        mEngineApp.mainThreadAction.flush();
+        mScene->mainThreadAction.flush();
+        mScene->clearThreadAction.flush();
+
         mModelView->close();
+        mMaterial->close();
+        mParticle->close();
+        mUI->close();
         close();
         QApplication::exit(Define::EEditorState::OPEN_HUB);
         service(EngineCore::Thread::ThreadPool).stop();
@@ -477,23 +694,67 @@ void WidgetEditor::openProject()
         mNewProjectOpen.mName = fileOpen.baseName();
 
         writeProjectSettings();
+        mDockManager->removeDockWidget(mHierarchy);
+        {
+            mEngineApp.close();
+            std::unique_lock<std::mutex> lck(mEngineApp.closeMut);
+            while (!mEngineApp.closed) mEngineApp.cv.wait(lck);
+        }
 
-        mEngineApp.close();
+        {
+            mScene->close();
+            std::unique_lock<std::mutex> lck(mScene->closeMut);
+            while (!mScene->closed) mScene->cv.wait(lck);
+        }
+        delete mHierarchy;
+
+        mEngineApp.mainThreadAction.flush();
+        mScene->mainThreadAction.flush();
+        mScene->clearThreadAction.flush();
+
         mModelView->close();
+        mMaterial->close();
+        mParticle->close();
+        mUI->close();
         close();
-        QApplication::exit(Define::LOAD_EDITOR);
+        QApplication::exit(Define::EEditorState::LOAD_EDITOR);
+        service(EngineCore::Thread::ThreadPool).stop();
     }
 }
 
 void WidgetEditor::quit()
 {
+    if (hasQuit)
+        return;
+
+    hasQuit = true;
     if (maybeSave())
     {
         writeProjectSettings();
 
-        mEngineApp.close();
-        mModelView->close();
+        mDockManager->removeDockWidget(mHierarchy);
+        {
+            mEngineApp.close();
+            std::unique_lock<std::mutex> lck(mEngineApp.closeMut);
+            while (!mEngineApp.closed) mEngineApp.cv.wait(lck);
+        }
+
+        {
+            mScene->close();
+            std::unique_lock<std::mutex> lck(mScene->closeMut);
+            while (!mScene->closed) mScene->cv.wait(lck);
+        }
+        delete mHierarchy;
+
+        mEngineApp.mainThreadAction.flush();
+        mScene->mainThreadAction.flush();
+        mScene->clearThreadAction.flush();
         
+
+        mModelView->close();
+        mMaterial->close();
+        mParticle->close();
+        mUI->close();
         service(EngineCore::Thread::ThreadPool).stop();
 
         close();
@@ -525,12 +786,27 @@ void WidgetEditor::maximize()
     }
 }
 
+void WidgetEditor::copyScene(bool pSaveBeforeLoad)
+{
+    if (pSaveBeforeLoad)
+        save();
+    openSceneWithPath(mLevelLabel.mFileName);
+}
+
 void WidgetEditor::play()
 {
+    playOnceClick = true;
+
+    mWindow->toggleView(true);
+
+    service(Scripting::ScriptInterpreter).RefreshAll();
     if (mPaused)
     {
         mPlayState.switchIcon(2);
         mEngineApp.mPlaying = true;
+        mEngineApp.mStart = true;
+        mEngineApp.mStop = false;
+        mEngineApp.mPaused = true;
         mPaused = false;
 
         mPlayFrameState.switchIcon(1);
@@ -542,6 +818,7 @@ void WidgetEditor::play()
     {
         mPlayState.switchIcon(1);
         mEngineApp.mPlaying = false;
+        mEngineApp.mPaused = true;
         mPaused = true;
 
         mPlayFrameState.switchIcon(2);
@@ -553,28 +830,22 @@ void WidgetEditor::play()
     {
         mConsole->toggleView(true);
         mConsole->play();
-
         mPlaying = true;
 
         mStopState.switchIcon(2);
         mStopState.setDisabled(false);
-
-        /*for (unsigned int i = 0; i < mEngine.mGameObjects.size(); i++)
-            mEngine.mGameObjects[i]->compile();
-
-        for (unsigned int i = 0; i < mEngine.mGameObjects.size(); i++)
-            mEngine.mGameObjects[i]->beginPlay();*/
     }
 }
 
 void WidgetEditor::playFrame()
 {
-    /*for (unsigned int i = 0; i < mEngine.mGameObjects.size(); i++)
-        mEngine.mGameObjects[i]->update(mEngine.mTime.mDeltaTime);*/
+    mEngineApp.playFrame();
 }
 
 void WidgetEditor::stop()
 {
+    playOnceClick = false;
+
     mPlayState.switchIcon(1);
     mPlaying = false;
     mPaused = true;
@@ -588,13 +859,15 @@ void WidgetEditor::stop()
     mPlayState.setTips(mSettings.value("PlayTips").toString());
 
     mEngineApp.mPlaying = false;
-    //for (unsigned int i = 0; i < mEngine.mGameObjects.size(); i++)
-    //    mEngine.mGameObjects[i]->stopPlay();
+    mEngineApp.mHasPlayed = false;
+    mEngineApp.mStop = true;
+    mEngineApp.mStart = false;
+    mEngineApp.mPaused = false;
+    service(Physics::Core::BulPhysicsEngine).mCollisionPairs.clear();
 }
 
 bool WidgetEditor::eventFilter(QObject* obj, QEvent* event)
 {
-
     if (obj == menuBar() && event->type() == QEvent::MouseButtonPress)
     {
         if (mScreenState.mIsFullScreen)
@@ -605,11 +878,9 @@ bool WidgetEditor::eventFilter(QObject* obj, QEvent* event)
         windowHandle()->startSystemMove();
     }
     else if (event->type() == QEvent::KeyPress)
-    {
-        QKeyEvent* keyEvent = (QKeyEvent*)event;
-        if (keyEvent->key() == Qt::Key_Escape)
-            quit();
-    }
+        Utils::sendQtInput((QKeyEvent*)event, EngineCore::EventSystem::KState::PRESS);
+    else if (event->type() == QEvent::KeyRelease)
+        Utils::sendQtInput((QKeyEvent*)event, EngineCore::EventSystem::KState::RELEASE);
     
     return QObject::eventFilter(obj, event);
 }
@@ -625,7 +896,7 @@ void WidgetEditor::loadResources(const QString& pPath)
             continue;
         }
 
-        Tools::Utils::PathParser::EFileType type = Tools::Utils::PathParser::getFileType(dirFileList[i].suffix());
+        Tools::Utils::PathParser::EFileType type = Utils::getFileType(dirFileList[i].suffix());
         switch (type)
         {
             case Tools::Utils::PathParser::EFileType::UNKNOWN:
@@ -639,12 +910,12 @@ void WidgetEditor::loadResources(const QString& pPath)
                 loadFile<Rendering::Resources::Texture>(dirFileList[i].absoluteFilePath(), dirFileList[i].baseName());
                 break;
 
-            case Tools::Utils::PathParser::EFileType::SHADER:
-                //loadFile<Shader>(dirFileList[i].absoluteFilePath());
+            case Tools::Utils::PathParser::EFileType::MATERIAL:
+                loadFile<Rendering::Resources::Material>(dirFileList[i].absoluteFilePath(), dirFileList[i].baseName());
                 break;
 
-            case Tools::Utils::PathParser::EFileType::MATERIAL:
-                //loadFile<Material>(dirFileList[i].absoluteFilePath());
+            case Tools::Utils::PathParser::EFileType::UI:
+                loadFile<Rendering::Resources::UI>(dirFileList[i].absoluteFilePath(), dirFileList[i].baseName());
                 break;
 
             case Tools::Utils::PathParser::EFileType::SOUND:
@@ -684,21 +955,25 @@ void WidgetEditor::createPreview(std::string pFile, Rendering::Resources::Model*
     //Create renderer and material, texture and uniform buffer
     Rendering::Renderer::VK::VKOffScreenRenderer renderer(800, 800);
     Rendering::Data::Material mat = Rendering::Renderer::Resources::VK::PipeLineBuilder()
-        .initPipeLine("Resources/Editor/Shaders/ModelVertex.vert.spv", "Resources/Editor/Shaders/ModelFrag.frag.spv", renderer.mRenderPass, false);
-    Rendering::Resources::Texture text("Resources/Editor/Textures/default.png");
+        .initPipeLine("Resources/Engine/Shaders/ModelVertex.vert.spv", "Resources/Engine/Shaders/ModelFrag.frag.spv", renderer.mRenderPass, false);
+    Rendering::Resources::Texture text("Resources/Engine/Textures/default.png");
     Rendering::Buffers::VK::VKUniformBuffer<Rendering::Data::UniformData> unibuffer(VK_SHADER_STAGE_VERTEX_BIT);
 
     //Bind to material
-    mat.bindDescriptor("texSampler", text.mTextureSets);
+    mat.bindDescriptor("texAlbedo", text.mTextureSets);
+    mat.bindDescriptor("texNormal", text.mTextureSets);
+    mat.bindDescriptor("texMetallic", text.mTextureSets);
+    mat.bindDescriptor("texRoughness", text.mTextureSets);
+    mat.bindDescriptor("texAO", text.mTextureSets);
     mat.bindDescriptor("ubo", unibuffer.mDescriptorSets);
 
     // Settup data view
     float max = Maths::fmax(Maths::fmax(pModel->mBox.mSize.x, pModel->mBox.mSize.y), pModel->mBox.mSize.z);
     float dist = max / tan(Maths::degreesToRadians(45) / 2);
-    Maths::FVector3 position(0, pModel->mBox.mMin.y + (pModel->mBox.mSize.y / 2), dist);
+    Maths::FVector3 position(0, pModel->mBox.mMin.y + (pModel->mBox.mSize.y / 2), -dist);
     unibuffer.mData = {
-                        Maths::FMatrix4::createTransformMatrix({ 0, 0, 0 }, { 25, 0, 0 }, { 1, 1, 1 }),
-                            Maths::FMatrix4::createPerspective(-45, float(renderer.mWindowExtent.width) / float(renderer.mWindowExtent.height), 0.01f, 1000.0f)
+                        Maths::FMatrix4::createTransformMatrix({ 0, 0, 0 }, { -25, 0, 0 }, { 1, 1, 1 }),
+                            Maths::FMatrix4::createPerspective(45, float(renderer.mWindowExtent.width) / float(renderer.mWindowExtent.height), 0.01f, dist * 2)
                             * Maths::FMatrix4::lookAt(position, position + Maths::FVector3::Forward, Maths::FVector3::Up)
                         };
     unibuffer.updateData();
@@ -719,4 +994,338 @@ void WidgetEditor::createPreview(std::string pFile, Rendering::Resources::Model*
 void WidgetEditor::openModel(QString pPath)
 {
     mModelView->open(service(EngineCore::ResourcesManagement::ResourceManager).get<Rendering::Resources::Model>(Utils::qStringToStdString(pPath)));
+}
+
+void WidgetEditor::openMaterial(QString pPath)
+{
+    mMaterial->open(pPath);
+}
+
+void WidgetEditor::openParticle(QString pPath)
+{
+    mParticle->open(pPath);
+}
+
+void WidgetEditor::openUI(QString pPath)
+{
+    mUI->open(pPath);
+}
+
+std::string WidgetEditor::exec(const char* cmd, bool pPrintToConsole)
+{
+    char buffer[500];
+    std::string result = "";
+    FILE* pipe = _popen(cmd, "r");
+    if (!pipe)
+        return ("Cant open File");
+    try
+    {
+        while (fgets(buffer, sizeof buffer, pipe) != NULL)
+        {
+            result = buffer;
+            result.pop_back();
+            if (pPrintToConsole && (std::string::npos == result.find(".pdb") && std::string::npos == result.find("warning")))
+                service(Editor::Widget::WidgetConsole).infoPrint(result.c_str());
+        }
+    }
+    catch (...)
+    {
+        _pclose(pipe);
+        throw;
+    }
+
+    _pclose(pipe);
+
+    return result;
+}
+
+void WidgetEditor::createBuild(QString pOutput)
+{
+    //Copy project file
+    Utils::copyAndReplaceFolderContents(mLocation.mFolder, pOutput + "/", false, pOutput);
+
+    // Compile program
+    std::string currentPath = std::filesystem::current_path().string();
+
+    std::string vsLocation = exec(("\"" + currentPath + "/Resources/Editor/Build/vswhere.exe -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath\"").c_str(), false);
+    std::string version = exec(("\"cd " + vsLocation + "/VC/Tools/MSVC/ && dir /B /AD\"").c_str(), false);
+
+    std::string vcvarsall = "\"" + vsLocation + "/VC/Auxiliary/Build/vcvarsall.bat\" x64";
+    std::string cl = "\"" + vsLocation + "/VC/Tools/MSVC/" + version + "/bin/Hostx64/x64/cl\"";
+
+    std::string vulkanPath = "C:/VulkanSDK/";
+    std::string vulkanVersion = exec(("\"cd " + vulkanPath + " && dir /B /AD\"").c_str(), false);;
+
+    std::string objectFile = " /Fo\"Resources/Editor/Build/\" ";
+    std::string main = " /EHsc Resources/Editor/Build/main.cpp Resources/Editor/Build/include/spirv_reflect.cpp";
+    std::string vulkanInclude = " /I " + vulkanPath + vulkanVersion + "/Include/ ";
+    std::string include = " /I Resources/Editor/Build/include/ " + vulkanInclude;
+    std::string libs = " Resources/Editor/Build/libs/*.lib user32.lib " + vulkanPath + vulkanVersion + "/Lib/vulkan-1.lib";
+    std::string output = " /Fe\"" + Utils::qStringToStdString(pOutput) + "/" + Utils::qStringToStdString(mLocation.mName) + ".exe" + "\" ";
+    
+    std::string flags = " /std:c++17 /MD /O2 /Ob2 /DSHIPPING /INCREMENTAL:NO ";
+
+    std::string compilationFile = objectFile + main + include + libs + output + flags;
+
+    std::string result = exec(("\"" + vcvarsall + " && " + cl + compilationFile + "\"").c_str());
+
+    //Copy dll
+    Utils::copyAndReplaceFolderContents(QString((currentPath + "/Resources/Editor/Build/bin/").c_str()), pOutput + "/");
+
+    //Copy assets
+    QDir dir(pOutput + "/Resources");
+    if (!dir.exists())
+        dir.mkpath(".");
+    Utils::copyAndReplaceFolderContents(QString((currentPath + "/Resources/Editor/Build/Resources/").c_str()), pOutput + "/Resources/");
+
+
+    service(Editor::Widget::WidgetConsole).infoPrint("Build Complete");
+}
+
+void WidgetEditor::parseMap(std::string pName)
+{
+    std::ifstream file(pName);
+    std::stringstream buffer;
+    buffer << file.rdbuf();
+    file.close();
+
+    rapidjson::Document doc;
+    bool result = doc.Parse(buffer.str().c_str()).HasParseError();
+    if (result)
+    {
+        WidgetConsole::errorPrint("Can\"t parse map ", pName);
+        return;
+    }
+
+    const rapidjson::Value& objects = doc["Actors"].GetArray();
+    for (unsigned int i = 0; i < objects.Size(); i++)
+        deserializeObjChild(nullptr, objects[i]);
+}
+
+WidgetGameObjectTreeItem* WidgetEditor::deserializeObjChild(void* pItem, const rapidjson::Value& pObject)
+{
+    WidgetGameObjectTreeItem* item = new WidgetGameObjectTreeItem(mSettings, pObject["Name"].GetString());
+    if (pItem == nullptr)
+        mHierarchy->mTree.append(item);
+    else
+        ((WidgetGameObjectTreeItem*)pItem)->appendRow(item);
+
+    const rapidjson::Value& tags = pObject["Tags"].GetArray();
+    for (unsigned int i = 0; i < tags.Size(); i++)
+    {
+        item->mActor->mTags.push_back(tags[i].GetString());
+        item->mDatas->addTag()->setText(tags[i].GetString());
+    }
+
+    const rapidjson::Value& objects = pObject["Components"].GetArray();
+    for (unsigned int i = 0; i < objects.Size(); i++)
+    {
+        Game::Utils::ComponentType type = (Game::Utils::ComponentType)objects[i]["Type"].GetInt();
+        if (type == Game::Utils::ComponentType::Transform)
+        {
+            Game::Component::CPTransform* transform = item->mActor->getTransform();
+            
+            transform->mLocalPosition = Maths::FVector3(objects[i]["Position"][0].GetDouble(), objects[i]["Position"][1].GetDouble(), objects[i]["Position"][2].GetDouble());
+            transform->mLocalRotation = Maths::FQuaternion(objects[i]["Rotation"][0].GetDouble(), objects[i]["Rotation"][1].GetDouble(), objects[i]["Rotation"][2].GetDouble(), objects[i]["Rotation"][3].GetDouble());
+            transform->mLocalScale = Maths::FVector3(objects[i]["Scale"][0].GetDouble(), objects[i]["Scale"][1].GetDouble(), objects[i]["Scale"][2].GetDouble());
+
+            item->mActor->updateWorldTransform(transform);
+        }
+        else if (type == Game::Utils::ComponentType::MeshRenderer)
+        {
+            Game::Component::CPModel* model = new Game::Component::CPModel();
+
+            std::string strPath = objects[i]["Path"].GetString();
+            if (!strPath.empty())
+                model->setModel(objects[i]["Name"].GetString(), (Utils::qStringToStdString(mLocation.mFolder) + strPath).c_str());
+            
+            if (!objects[i]["DefaultMat"].GetBool())
+                model->setMat(objects[i]["Mat"].GetString(), (Utils::qStringToStdString(mLocation.mFolder) + objects[i]["MatPath"].GetString()).c_str());
+            else
+                model->setMat(objects[i]["Mat"].GetString(), objects[i]["MatPath"].GetString());
+            
+            item->mActor->addComponent(Game::Utils::ComponentType::MeshRenderer, model);
+
+            item->mDatas->addModel(model);
+        }
+        else if (type == Game::Utils::ComponentType::Animator)
+        {
+            Game::Component::CPAnimator* anim = new Game::Component::CPAnimator();
+            
+            anim->playOnAwake = objects[i]["PlayOnAwake"].GetBool();
+            anim->loop = objects[i]["Loop"].GetBool();
+            anim->cpModelIdx = objects[i]["CPModelIdx"].GetInt();
+            item->mActor->addComponent(Game::Utils::ComponentType::Animator, anim);
+
+            std::string strPath = objects[i]["Path"].GetString();
+            if (!strPath.empty())
+                anim->setAnimation(objects[i]["Name"].GetString(), (Utils::qStringToStdString(mLocation.mFolder) + strPath).c_str());
+
+            item->mDatas->addAnimator(anim);
+        }
+        else if (type == Game::Utils::ComponentType::Particle)
+        {
+            Game::Component::CPParticle* particle = new Game::Component::CPParticle();
+
+            particle->playOnAwake = objects[i]["PlayOnAwake"].GetBool();
+            particle->loop = objects[i]["Loop"].GetBool();
+            particle->playInEditor = objects[i]["PlayInEditor"].GetBool();
+            particle->mPlaybackSpeed = objects[i]["PlayBackSpeed"].GetDouble();
+            
+            std::string strPath = objects[i]["Path"].GetString();
+            if (!strPath.empty())
+                particle->setParticle(objects[i]["Name"].GetString(), (Utils::qStringToStdString(mLocation.mFolder) + strPath).c_str());
+            
+            item->mActor->addComponent(Game::Utils::ComponentType::Particle, particle);
+            item->mDatas->addParticle(particle);
+        }
+        else if (type == Game::Utils::ComponentType::Camera)
+        {
+            Game::Component::CPCamera* newCamera = new Game::Component::CPCamera(service(Rendering::Renderer::VK::VKRenderer).mWindow->mWidth,
+                                                                                service(Rendering::Renderer::VK::VKRenderer).mWindow->mHeight,
+                                                                                item->mActor->getTransform()->mLocalPosition,
+                                                                                item->mActor->getTransform()->mLocalRotation,
+                                                                                item->mActor->mValueChangedFromEditor);
+            newCamera->mFOV = objects[i]["FOV"].GetDouble();
+            newCamera->mNear = objects[i]["Near"].GetDouble();
+            newCamera->mFar = objects[i]["Far"].GetDouble();
+            newCamera->useSkyBox = objects[i]["UseSkyBox"].GetBool();
+
+            bool defaultSky = objects[i]["defaultSky"].GetBool();
+            if (newCamera->useSkyBox && !defaultSky)
+            {
+                const rapidjson::Value& arr = objects[i]["SkyBoxPath"].GetArray();
+                std::string path = Utils::qStringToStdString(mLocation.mFolder);
+
+                std::string left = path + arr[0].GetString();
+                std::string right = path + arr[1].GetString();
+                std::string top = path + arr[2].GetString();
+                std::string button = path + arr[3].GetString();
+                std::string front = path + arr[4].GetString();
+                std::string back = path + arr[5].GetString();
+                newCamera->skybox.setTexture(left, right, top, button, front, back);
+            }
+            else if (newCamera->useSkyBox && defaultSky)
+                newCamera->skybox.setDefault();
+
+            newCamera->updateProjection();
+            newCamera->updateModel(item->mActor->getTransform()->mWorldMatrix);
+            item->mActor->addComponent(Game::Utils::ComponentType::Camera, newCamera);
+            item->mDatas->addCamera(newCamera);
+        }
+        else if (type == Game::Utils::ComponentType::BoxCollider)
+        {
+            Maths::FVector3 position = item->mActor->getTransform()->mLocalPosition;
+            Maths::FVector3 size = item->mActor->getTransform()->mLocalScale;
+
+            Game::Component::CPBoxCollider* newBody = new Game::Component::CPBoxCollider(position, size, (void*)item->mActor);
+            newBody->setType((Physics::Data::TypeRigidBody)objects[i]["TypeCollision"].GetInt());
+            newBody->setMass(objects[i]["Mass"].GetDouble());
+            newBody->mCenter = Maths::FVector3(objects[i]["Center"][0].GetDouble(), objects[i]["Center"][1].GetDouble(), objects[i]["Center"][2].GetDouble());
+            newBody->mSize = Maths::FVector3(objects[i]["Size"][0].GetDouble(), objects[i]["Size"][1].GetDouble(), objects[i]["Size"][2].GetDouble());
+            newBody->recreateCollider();
+
+            item->mActor->addComponent(Game::Utils::ComponentType::Collider, newBody);
+            item->mDatas->addBoxCollider(newBody);
+        }
+        else if (type == Game::Utils::ComponentType::CapsuleCollider)
+        {
+            Maths::FVector3 position = item->mActor->getTransform()->mLocalPosition;
+            float Radius = Maths::fmax(item->mActor->getTransform()->mLocalScale.x, item->mActor->getTransform()->mLocalScale.z);
+            float Height = item->mActor->getTransform()->mLocalScale.y;
+            
+            Game::Component::CPCapsuleCollider* newBody = new Game::Component::CPCapsuleCollider(position, Radius, Height, (void*)item->mActor);
+            
+            newBody->setType((Physics::Data::TypeRigidBody)objects[i]["TypeCollision"].GetInt());
+            newBody->setMass(objects[i]["Mass"].GetDouble());
+            newBody->mCenter = Maths::FVector3(objects[i]["Center"][0].GetDouble(), objects[i]["Center"][1].GetDouble(), objects[i]["Center"][2].GetDouble());
+            newBody->mRadius = objects[i]["Radius"].GetDouble();
+            newBody->mHeight = objects[i]["Height"].GetDouble();
+            newBody->recreateCollider();
+
+            item->mActor->addComponent(Game::Utils::ComponentType::Collider, newBody);
+            item->mDatas->addCapsuleCollider(newBody);
+        }
+        else if (type == Game::Utils::ComponentType::Script)
+        {
+            Game::Component::CPScript* script = new Game::Component::CPScript();
+            std::string strPath = objects[i]["Path"].GetString();
+            if (!strPath.empty())
+                script->setScript(objects[i]["Name"].GetString(), (Utils::qStringToStdString(mLocation.mFolder) + strPath).c_str());
+            item->mActor->addComponent(Game::Utils::ComponentType::Script, script);
+
+            item->mDatas->addScript(script);
+        }
+        else if (type == Game::Utils::ComponentType::Sound)
+        {
+            Game::Component::CPSound* sound = new Game::Component::CPSound();
+            std::string strPath = objects[i]["Path"].GetString();
+            if (!strPath.empty())
+                sound->setClip(objects[i]["Name"].GetString(), (Utils::qStringToStdString(mLocation.mFolder) + strPath).c_str());
+            sound->mute = objects[i]["Mute"].GetBool();
+            sound->playOnAwake = objects[i]["PlayOnAwake"].GetBool();
+            sound->loop = objects[i]["Loop"].GetBool();
+            sound->volume = objects[i]["Volume"].GetInt();
+            sound->is3DSound = objects[i]["Is3DSound"].GetBool();
+            sound->minDist = objects[i]["MinDist"].GetInt();
+            item->mActor->addComponent(Game::Utils::ComponentType::Sound, sound);
+
+            item->mDatas->addSound(sound);
+        }
+        else if (type == Game::Utils::ComponentType::SoundListener)
+        {
+            Game::Component::CPSoundListener* sound = new Game::Component::CPSoundListener();
+            item->mActor->addComponent(Game::Utils::ComponentType::SoundListener, sound);
+
+            item->mDatas->addSoundListener(sound);
+        }
+        else if (type == Game::Utils::ComponentType::UI)
+        {
+            Game::Component::CPUI* ui = new Game::Component::CPUI();
+            std::string strPath = objects[i]["Path"].GetString();
+            if (!strPath.empty())
+                ui->setUI(objects[i]["Name"].GetString(), (Utils::qStringToStdString(mLocation.mFolder) + strPath).c_str());
+            item->mActor->addComponent(Game::Utils::ComponentType::UI, ui);
+
+            item->mDatas->addUI(ui);
+        }
+        else if (type == Game::Utils::ComponentType::DirLight)
+        {
+            Game::Component::CPDirLight* dirLight = new Game::Component::CPDirLight();
+            dirLight->mAttenuatuion = objects[i]["Attenuation"].GetDouble();
+            dirLight->mColor = Maths::FVector3(objects[i]["Color"][0].GetDouble(), objects[i]["Color"][1].GetDouble(), objects[i]["Color"][2].GetDouble());
+            
+            item->mActor->addComponent(Game::Utils::ComponentType::Light, dirLight);
+            item->mDatas->addDirLight(dirLight);
+        }
+        else if (type == Game::Utils::ComponentType::PointLight)
+        {
+            Game::Component::CPPointLight* pointLight = new Game::Component::CPPointLight();
+            pointLight->mAttenuatuion = objects[i]["Attenuation"].GetDouble();
+            pointLight->mColor = Maths::FVector3(objects[i]["Color"][0].GetDouble(), objects[i]["Color"][1].GetDouble(), objects[i]["Color"][2].GetDouble());
+            pointLight->mRadius = objects[i]["Radius"].GetDouble();
+            pointLight->mBrightness = objects[i]["Brightness"].GetDouble();
+
+            item->mActor->addComponent(Game::Utils::ComponentType::Light, pointLight);
+            item->mDatas->addPointLight(pointLight);
+        }
+        else if (type == Game::Utils::ComponentType::SpotLight)
+        {
+            Game::Component::CPSpotLight* spotLight = new Game::Component::CPSpotLight();
+            spotLight->mAttenuatuion = objects[i]["Attenuation"].GetDouble();
+            spotLight->mColor = Maths::FVector3(objects[i]["Color"][0].GetDouble(), objects[i]["Color"][1].GetDouble(), objects[i]["Color"][2].GetDouble());
+            spotLight->mCutOff = objects[i]["CutOff"].GetDouble();
+            spotLight->mOuterCutOff = objects[i]["OuterCutOff"].GetDouble();
+            spotLight->updateRad();
+
+            item->mActor->addComponent(Game::Utils::ComponentType::Light, spotLight);
+            item->mDatas->addSpotLight(spotLight);
+        }
+    }
+
+    const rapidjson::Value& childs = pObject["Childs"].GetArray();
+    for (unsigned int i = 0; i < childs.Size(); i++)
+        return deserializeObjChild(item, childs[i]);
+
+    return item;
 }

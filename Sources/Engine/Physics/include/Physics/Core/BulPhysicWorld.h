@@ -16,12 +16,14 @@ namespace Physics::Core
 		btDiscreteDynamicsWorld mWorld;
 
 		PhysicWorld();
+		PhysicWorld(const PhysicWorld& pOther);
+		PhysicWorld& operator=(const PhysicWorld& pOther);
 		virtual ~PhysicWorld();
 		void setGravity(float pX, float pY, float pZ);
 		void stepSimulation(float pDeltaTime);
 		void removeRigidBody(btRigidBody* pCollider);
 		btDispatcher* getDispatcher();
-		virtual void addBoxCollider(btRigidBody& pCollider);
+		virtual void addCollider(btRigidBody& pCollider);
 		virtual void removeCollider(btRigidBody& pCollider);
 		void setDebugDrawer(btIDebugDraw* pDebugger);
 	};

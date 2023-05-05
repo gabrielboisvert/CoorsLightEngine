@@ -601,7 +601,7 @@ void WidgetProjectHub::createProject()
     file.remove();
 
     Editor::Utils::copyAndReplaceFolderContents(QDir::currentPath() + "/" + mSettings.value("TemplateDirectory").toString() + mSelectedProject->mText.text(), mCurrentProject->mFolder);
-    QFile::rename(mCurrentProject->mFolder + "/" + mSettings.value("DefaultProjectName").toString(), str);
+    QFile::rename(mCurrentProject->mFolder + "/" + mSettings.value("DefaultProjectNameWithExtension").toString(), str);
 
     writeSaveData();
     close();

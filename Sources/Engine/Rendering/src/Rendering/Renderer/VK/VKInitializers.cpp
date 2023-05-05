@@ -152,7 +152,7 @@ VkPipelineRasterizationStateCreateInfo VKInit::rasterizationStateCreateInfo(VkPo
 	info.cullMode = VK_CULL_MODE_NONE;
 	info.frontFace = VK_FRONT_FACE_CLOCKWISE;
 	//no depth bias
-	info.depthBiasEnable = VK_FALSE;
+	info.depthBiasEnable = VK_TRUE;
 	info.depthBiasConstantFactor = 0.0f;
 	info.depthBiasClamp = 0.0f;
 	info.depthBiasSlopeFactor = 0.0f;
@@ -195,7 +195,7 @@ VkPipelineLayoutCreateInfo VKInit::pipelineLayoutCreateInfo()
 	return info;
 }
 
-VkImageCreateInfo VKInit::imageCreateInfo(VkFormat format, VkImageUsageFlags usageFlags, VkExtent3D extent)
+VkImageCreateInfo VKInit::imageCreateInfo(VkFormat format, VkImageUsageFlags usageFlags, VkExtent3D extent, VkImageTiling tiling)
 {
 	VkImageCreateInfo info = { };
 	info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -206,8 +206,10 @@ VkImageCreateInfo VKInit::imageCreateInfo(VkFormat format, VkImageUsageFlags usa
 	info.mipLevels = 1;
 	info.arrayLayers = 1;
 	info.samples = VK_SAMPLE_COUNT_1_BIT;
-	info.tiling = VK_IMAGE_TILING_OPTIMAL;
+	info.tiling = tiling;
 	info.usage = usageFlags;
+	info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+	info.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 	return info;
 }
 
@@ -224,6 +226,7 @@ VkImageViewCreateInfo VKInit::imageviewCreateInfo(VkFormat format, VkImage image
 	info.subresourceRange.baseArrayLayer = 0;
 	info.subresourceRange.layerCount = 1;
 	info.subresourceRange.aspectMask = aspectFlags;
+
 	return info;
 }
 

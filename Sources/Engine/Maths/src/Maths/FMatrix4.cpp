@@ -707,23 +707,17 @@ FMatrix4 FMatrix4::createPerspective(const float pfov, const float paspectRatio,
 	return createFrustum(-width, width, -height, height, pzNear, pzFar);
 }
 
-FMatrix4 FMatrix4::createOrthographic(const float psize, const float paspectRatio, const float pzNear, const float pzFar)
+FMatrix4 FMatrix4::createOrthographic(const float pleft, const float pright, const float pbottom, const float ptop, const float pzNear, const float pzFar)
 {
-	auto ortho = FMatrix4::Identity;
+	FMatrix4 ortho = FMatrix4::Identity;
 
-	const auto right = psize * paspectRatio;
-	const auto left = -right;
-
-	const auto top = psize;
-	const auto bottom = -top;
-
-	ortho(0, 0) = 2.0f / (right - left);
-	ortho(1, 1) = 2.0f / (top - bottom);
-	ortho(2, 2) = -2.0f / (pzFar - pzNear);
-	ortho(0, 3) = -(right + left) / (right - left);
-	ortho(1, 3) = -(top + bottom) / (top - bottom);
-	ortho(2, 3) = -(pzFar + pzNear) / (pzFar - pzNear);
-	ortho(3, 3) = 1.0f;
+	ortho.data[0][0] = 2.0f / (pright - pleft);
+	ortho.data[1][1] = 2.0f / (ptop - pbottom);
+	ortho.data[2][2] = -2.0f / (pzFar - pzNear);
+	ortho.data[3][0] = -(pright + pleft) / (pright - pleft);
+	ortho.data[3][1] = -(ptop + pbottom) / (ptop - pbottom);
+	ortho.data[3][2] = -(pzFar + pzNear) / (pzFar - pzNear);
+	ortho.data[3][3] = 1.0f;
 
 	return ortho;
 }
@@ -738,7 +732,7 @@ FMatrix4 FMatrix4::lookAt(const FVector3& pEye, const FVector3& pLook, const FVe
 	FVector3  f = FVector3::normalize(pLook - pEye);
 	FVector3  u = FVector3::normalize(pUp);
 	FVector3  r = FVector3::normalize(FVector3::cross(f, u));
-	u = FVector3::cross(r, f);
+	u = FVector3::cross(f, r);
 
 	FMatrix4 Result = FMatrix4::Identity;
 	Result.data[0][0] = r.x;

@@ -15,9 +15,12 @@ bool ModelLoader::importMesh(const char* pFilePath, std::vector<VK::VKMesh>& pMe
     const aiScene* scene = importer.ReadFile(pFilePath, aiProcess_CalcTangentSpace | aiProcess_FixInfacingNormals |
                                                         aiProcess_ConvertToLeftHanded | aiProcess_JoinIdenticalVertices | 
                                                         aiProcess_Triangulate | aiProcess_GenSmoothNormals | aiProcess_GenBoundingBoxes);
-
     if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode)
     {
+        if (scene != nullptr)
+            if (scene->HasAnimations())
+                return false;
+
         std::cout << "ERROR::ASSIMP:: " << importer.GetErrorString() << std::endl;
         return false;
     }

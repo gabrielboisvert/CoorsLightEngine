@@ -22,7 +22,8 @@ namespace Rendering::Renderer
 			uint32_t mGraphicsQueueFamily;
 			VkImageView mDepthImageView;
 			Data::AllocatedImage mDepthImage;
-			VkFormat mDepthFormat = VK_FORMAT_D32_SFLOAT;
+			VkFormat mDepthFormat = VK_FORMAT_D32_SFLOAT_S8_UINT;
+			VkFormat mColorFormat = VK_FORMAT_R8G8B8A8_UNORM;
 
 			VkRenderPass mRenderPass;
 			Data::DeletionQueue mMainDeletionQueue;

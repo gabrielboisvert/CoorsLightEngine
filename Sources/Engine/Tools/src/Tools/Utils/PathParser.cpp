@@ -1,7 +1,7 @@
 #include <algorithm>
 
 #include "Tools/Utils/PathParser.h"
-#include "Editor/Utils/Utils.h"
+#include "Tools/Utils/Define.h"
 
 using namespace Tools::Utils;
 
@@ -86,12 +86,13 @@ std::string PathParser::fileTypeToString(EFileType pFileType)
 	{
 		case PathParser::EFileType::MODEL:		return "Model";
 		case PathParser::EFileType::TEXTURE:	return "Texture";
-		case PathParser::EFileType::SHADER:		return "Shader";
 		case PathParser::EFileType::MATERIAL:	return "Material";
 		case PathParser::EFileType::SOUND:		return "Sound";
 		case PathParser::EFileType::SCENE:		return "Scene";
 		case PathParser::EFileType::SCRIPT:		return "Script";
 		case PathParser::EFileType::FONT:		return "Font";
+		case PathParser::EFileType::PREFAB:		return "Prefab";
+		case PathParser::EFileType::PARTICLE:		return "Particle";
 	}
 
 	return "Unknown";
@@ -106,43 +107,20 @@ PathParser::EFileType PathParser::getFileType(const std::string& pPath)
 		return EFileType::MODEL;
 	else if (ext == "png" || ext == "jpeg" || ext == "jpg" || ext == "bmp")
 		return EFileType::TEXTURE;
-	else if (ext == "glsl")
-		return EFileType::SHADER;
-	else if (ext == "mat")
+	else if (ext == Define::MATERIAL_EXTENSION)
 		return EFileType::MATERIAL;
-	else if (ext == "wav" || ext == "mp3" || ext == "ogg")
+	else if (ext == "mp3")
 		return EFileType::SOUND;
-	else if (ext == "scene")
+	else if (ext == Define::SCENE_EXTENSION)
 		return EFileType::SCENE;
-	else if (ext == "lua")
+	else if (ext == Define::CLASS_EXTENSION)
 		return EFileType::SCRIPT;
 	else if (ext == "ttf")
 		return EFileType::FONT;
-
-	return EFileType::UNKNOWN;
-}
-
-PathParser::EFileType PathParser::getFileType(const QString& pExtension)
-{
-	std::string pExt = Editor::Utils::qStringToStdString(pExtension);
-	std::transform(pExt.begin(), pExt.end(), pExt.begin(), ::tolower);
-
-	if (pExt == "fbx" || pExt == "obj" || pExt == "dae")
-		return EFileType::MODEL;
-	else if (pExt == "png" || pExt == "jpeg" || pExt == "jpg" || pExt == "bmp")
-		return EFileType::TEXTURE;
-	else if (pExt == "glsl")
-		return EFileType::SHADER;
-	else if (pExt == "mat")
-		return EFileType::MATERIAL;
-	else if (pExt == "wav" || pExt == "mp3" || pExt == "ogg")
-		return EFileType::SOUND;
-	else if (pExt == "map")
-		return EFileType::SCENE;
-	else if (pExt == "lua")
-		return EFileType::SCRIPT;
-	else if (pExt == "ttf")
-		return EFileType::FONT;
+	else if (ext == "fab")
+		return EFileType::PREFAB;
+	else if (ext == "pat")
+		return EFileType::PARTICLE;
 
 	return EFileType::UNKNOWN;
 }

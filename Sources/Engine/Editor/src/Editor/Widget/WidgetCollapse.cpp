@@ -1,10 +1,10 @@
 #include "Editor/Widget/WidgetCollapse.h"
 #include <QtCore/qpropertyanimation.h>
-
+#include <QtWidgets/qmenu.h>
 using namespace Editor::Widget;
 
-WidgetCollapse::WidgetCollapse(const QIcon& pIcon, const QString& title, const int animationDuration, QWidget* parent) 
-    : QWidget(parent), animationDuration(animationDuration) 
+WidgetCollapse::WidgetCollapse(QSettings& pSetting, Game::Data::Actor& pActor, Game::Component::AComponent& pComponent,Game::Utils::ComponentType pType, const QIcon& pIcon, const QString& title, bool hasAnimation, const int animationDuration, QWidget* parent)
+    : QWidget(parent), animationDuration(animationDuration), mActor(pActor), mComponent(pComponent), mType(pType), mSetting(pSetting)
 {
     toggleButton.setStyleSheet("QToolButton { color:#d2d2d2; background-color: #3e3e3e; border: 0px; }");
     toggleButton.setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
@@ -32,12 +32,18 @@ WidgetCollapse::WidgetCollapse(const QIcon& pIcon, const QString& title, const i
     mainLayout.addWidget(&toggleButton, 0, 0);
     mainLayout.addWidget(&contentArea, 1, 0);
     setLayout(&mainLayout);
-    QObject::connect(&toggleButton, &QToolButton::clicked, [this, &pIcon](const bool checked)
-    {
-        //toggleButton.setArrowType(checked ? Qt::ArrowType::DownArrow : Qt::ArrowType::RightArrow);
-        toggleAnimation.setDirection(checked ? QAbstractAnimation::Forward : QAbstractAnimation::Backward);
-        toggleAnimation.start();
-    });
+    if (hasAnimation)
+        QObject::connect(&toggleButton, &QToolButton::clicked, [this, &pIcon](const bool checked)
+        {
+            //toggleButton.setArrowType(checked ? Qt::ArrowType::DownArrow : Qt::ArrowType::RightArrow);
+            toggleAnimation.setDirection(checked ? QAbstractAnimation::Forward : QAbstractAnimation::Backward);
+            toggleAnimation.start();
+        });
+
+
+    setContextMenuPolicy(Qt::CustomContextMenu);
+
+    connect(this, &QWidget::customContextMenuRequested, this, &WidgetCollapse::showMenu);
 }
 
 void WidgetCollapse::setContentLayout(QLayout& contentLayout) 
@@ -57,4 +63,24 @@ void WidgetCollapse::setContentLayout(QLayout& contentLayout)
     contentAnimation->setDuration(animationDuration);
     contentAnimation->setStartValue(0);
     contentAnimation->setEndValue(contentHeight);
+}
+
+void Editor::Widget::WidgetCollapse::showMenu(const QPoint& pPos)
+{
+    if (mType == Game::Utils::ComponentType::Transform)
+    {
+        return;
+    }
+    QMenu Menu("Hello world", this);
+    QAction Action(QIcon(mSetting.value("ComponentMenuRemoveIcon").toString()), mSetting.value("ComponentMenuRemove").toString());
+    Menu.addAction(&Action);
+    
+    connect(&Action, &QAction::triggered, this, [this] {
+            mActor.removeComponent(mType, &mComponent);
+            parentWidget()->layout()->removeWidget(this);
+            this->hide();
+            deleteLater();
+        });
+
+    Menu.exec(mapToGlobal(pPos));
 }

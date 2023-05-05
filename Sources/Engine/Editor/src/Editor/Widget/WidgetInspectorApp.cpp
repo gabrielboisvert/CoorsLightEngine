@@ -29,17 +29,21 @@ void WidgetInspectorApp::dropEvent(QDropEvent* pEvent)
 		return;
 
 	QFileInfo info = QFileInfo(pEvent->mimeData()->text());
-	if (Tools::Utils::PathParser::getFileType(info.suffix()) == Tools::Utils::PathParser::EFileType::MODEL)
-		mSelectedItem->mDatas.setModel(info);
+	if (Utils::getFileType(info.suffix()) == Tools::Utils::PathParser::EFileType::MODEL)
+		mSelectedItem->mDatas->setModel(info);
+	else if (Utils::getFileType(info.suffix()) == Tools::Utils::PathParser::EFileType::SCRIPT)
+		mSelectedItem->mDatas->setScript(info);
+	else if (Utils::getFileType(info.suffix()) == Tools::Utils::PathParser::EFileType::SOUND)
+		mSelectedItem->mDatas->setSound(info);
+	else if (Utils::getFileType(info.suffix()) == Tools::Utils::PathParser::EFileType::UI)
+		mSelectedItem->mDatas->setUI(info);
+	else if (Utils::getFileType(info.suffix()) == Tools::Utils::PathParser::EFileType::PARTICLE)
+		mSelectedItem->mDatas->setParticle(info);
 }
-
-WidgetInspectorApp::~WidgetInspectorApp()
-{
-}
-
 
 void WidgetInspectorApp::updateInspector(WidgetGameObjectTreeItem* pItem)
-{	
+{
+	WidgetGameObjectTreeItem* previous = mSelectedItem;
 	mSelectedItem = pItem;
 	if (mData != nullptr)
 	{
@@ -51,8 +55,7 @@ void WidgetInspectorApp::updateInspector(WidgetGameObjectTreeItem* pItem)
 	if (pItem == nullptr)
 		return;
 
-
-	mData = &pItem->mDatas;
+	mData = pItem->mDatas;
 	mLayout->addWidget(mData, 0, Qt::AlignTop);
 	mData->show();
 }

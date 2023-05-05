@@ -15,6 +15,8 @@ namespace Maths
 
 		~FTransform();
 
+		void printWorld();
+
 		void notificationHandler(Internal::TransformNotifier::ENotification p_notification);
 
 		void setParent(FTransform& p_parent);
@@ -61,7 +63,7 @@ namespace Maths
 
 		const FMatrix4& getLocalMatrix() const;
 
-		const FMatrix4& getWorldMatrix() const;
+		FMatrix4& getWorldMatrix();
 
 		FVector3 getWorldForward() const;
 
@@ -92,6 +94,6 @@ namespace Maths
 		FMatrix4 mLocalMatrix;
 		FMatrix4 mWorldMatrix;
 
-		FTransform*	mParent;
+		FTransform* mParent;
 	};
 }

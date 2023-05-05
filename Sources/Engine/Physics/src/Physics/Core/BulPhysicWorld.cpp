@@ -3,14 +3,29 @@
 
 using namespace Physics::Core;
 
-PhysicWorld::PhysicWorld()
-	: mDispatcher(&mCollConfig), mWorld(&mDispatcher, &mBroadPhase, &mSolver, &mCollConfig)
+PhysicWorld::PhysicWorld() : mDispatcher(&mCollConfig), mWorld(&mDispatcher, &mBroadPhase, &mSolver, &mCollConfig) {}
+
+Physics::Core::PhysicWorld::PhysicWorld(const PhysicWorld& pOther) : mDispatcher(&mCollConfig), mWorld(&mDispatcher, &mBroadPhase, &mSolver, &mCollConfig)
 {
+	mCollConfig = pOther.mCollConfig;
+	mDispatcher = pOther.mDispatcher;
+	mBroadPhase = pOther.mBroadPhase;
+	mSolver = pOther.mSolver;
+	mWorld = pOther.mWorld;
+}
+
+PhysicWorld& Physics::Core::PhysicWorld::operator=(const PhysicWorld& pOther)
+{
+	mCollConfig = pOther.mCollConfig;
+	mDispatcher = pOther.mDispatcher;
+	mBroadPhase = pOther.mBroadPhase;
+	mSolver = pOther.mSolver;
+	mWorld = pOther.mWorld;
+	return *this;
 }
 
 PhysicWorld::~PhysicWorld()
 {
-	delete mWorld.getDebugDrawer();
 }
 
 void PhysicWorld::setGravity(float pX, float pY, float pZ)
@@ -33,7 +48,7 @@ btDispatcher* PhysicWorld::getDispatcher()
 	return mWorld.getDispatcher();
 }
 
-void PhysicWorld::addBoxCollider(btRigidBody& pCollider)
+void PhysicWorld::addCollider(btRigidBody& pCollider)
 {
 	mWorld.addRigidBody(&pCollider, Data::CollisionGroups::Default, btBroadphaseProxy::AllFilter);
 }

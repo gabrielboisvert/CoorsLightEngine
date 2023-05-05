@@ -3,6 +3,8 @@
 #include "Editor/Widget/WidgetGameObjectTreeModel.h"
 #include "Editor/Widget/WidgetGameObjectTreeItem.h"
 #include "Editor/Widget/WidgetInspectorApp.h"
+#include "rapidjson/prettywriter.h"
+#include "rapidjson/stringbuffer.h"
 
 namespace Editor::Widget
 {
@@ -15,6 +17,9 @@ namespace Editor::Widget
 		WidgetGameObjectTreeModel mTreeModel;
 		WidgetGameObjectTreeItem* mCopiedActor = nullptr;
 		WidgetInspectorApp& mInspector;
+
+		int mIdSelected = 0;
+		Editor::Data::Actor* mSelectedActor = nullptr;
 
 		WidgetGameObjectTree(QSettings& pSetting, WidgetInspectorApp& pInspector);
 		~WidgetGameObjectTree();
@@ -40,5 +45,8 @@ namespace Editor::Widget
 
 		void selectionChanged(const QItemSelection& selected, const QItemSelection& deselected) override;
 		void onItemChanged(QStandardItem* pItem);
+
+		void serializeItem(rapidjson::PrettyWriter<rapidjson::StringBuffer>& pWriter);
+		void serializeItemChild(QStandardItem* pItem, rapidjson::PrettyWriter<rapidjson::StringBuffer>& pWriter);
 	};
 }

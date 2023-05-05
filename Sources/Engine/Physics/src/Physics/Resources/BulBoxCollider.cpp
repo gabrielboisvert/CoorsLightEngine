@@ -4,16 +4,33 @@
 
 using namespace Physics::Resources;
 
-BulBoxCollider::BulBoxCollider(Maths::FVector3 pPosition, Maths::FVector3 pSize) 
-	: mPosition(pPosition), mSize(pSize), mBox(btVector3(mSize.x, mSize.y, mSize.z))
+BulBoxCollider::BulBoxCollider(Maths::FVector3 pPosition, Maths::FVector3 pSize, void* pActor) 
+	: IRigidbody(pPosition), mSize(pSize), mBox(btVector3(mSize.x, mSize.y, mSize.z))
 {
 	createCollider();
-	service(Core::BulPhysicsEngine).addBoxCollider(*mCollider);
+	service(Core::BulPhysicsEngine).addCollider(*mCollider);
+
+	std::function<void(void* pRigidbody, void* pOtherCollider, btPersistentManifold* persistent)> collisionEnterCallback = [this](void* pRigidbody, void* pOtherCollider, btPersistentManifold* pPersistent) {
+		OnAnyCollisionEnter(pRigidbody, pOtherCollider, pPersistent);
+	};
+
+	std::function<void(void* pRigidbody, void* pOtherCollider, btPersistentManifold* persistent)> collisionStayCallback = [this](void* pRigidbody, void* pOtherCollider, btPersistentManifold* pPersistent) {
+		OnAnyCollisionStay(pRigidbody, pOtherCollider, pPersistent);
+	};
+
+	std::function<void(void* pRigidbody, void* pOtherCollider, btPersistentManifold* manifold)> collisionExitCallback = [this](void* pRigidbody, void* pOtherCollider, btPersistentManifold* pPersistent) {
+		OnAnyCollisionExit(pRigidbody, pOtherCollider, pPersistent);
+	};
+
+	mCallback.physicsObject = pActor;
+	mCallback.enter = collisionEnterCallback;
+	mCallback.stay = collisionStayCallback;
+	mCallback.exit = collisionExitCallback;
+	mCallback.rigidbody = this;
 }
 
 BulBoxCollider::BulBoxCollider(BulBoxCollider& pOther)
-	: mType(pOther.mType), mPosition(pOther.mPosition), mSize(pOther.mSize), mMass(pOther.mMass), 
-	mBox(pOther.mBox), mMotion(pOther.mMotion)
+	: IRigidbody(pOther),  mSize(pOther.mSize), mBox(pOther.mBox), mMotion(pOther.mMotion), mCallback(pOther.mCallback)
 {
 	mCollider = std::move(pOther.mCollider);
 }
@@ -22,16 +39,6 @@ BulBoxCollider::~BulBoxCollider()
 {
 	service(Core::BulPhysicsEngine).removeCollider(*mCollider);
 	delete mCollider;
-}
-
-Maths::FVector3 BulBoxCollider::getPositionFromPhysics()
-{
-	btTransform transform;
-	btScalar worldmatrix[16];
-	transform = mCollider->getWorldTransform();
-	mPosition = Maths::FVector3(transform.getOrigin().x(), transform.getOrigin().y(), transform.getOrigin().z());
-
-	return mPosition;
 }
 
 void BulBoxCollider::setTransform(Maths::FVector3 pPosition, Maths::FQuaternion pRotation, Maths::FVector3 pSize)
@@ -45,31 +52,7 @@ void BulBoxCollider::setTransform(Maths::FVector3 pPosition, Maths::FQuaternion 
 	delete mCollider;
 	createCollider();
 
-	service(Core::BulPhysicsEngine).addBoxCollider(*mCollider);
-}
-
-void BulBoxCollider::setType(Data::TypeRigidBody pType)
-{
-	mType = pType;
-
-	service(Core::BulPhysicsEngine).removeCollider(*mCollider);
-
-	delete mCollider;
-	createCollider();
-
-	service(Core::BulPhysicsEngine).addBoxCollider(*mCollider);
-}
-
-void BulBoxCollider::updateMass(double pValue)
-{
-	mMass = pValue;
-	
-	service(Core::BulPhysicsEngine).removeCollider(*mCollider);
-
-	delete mCollider;
-	createCollider();
-
-	service(Core::BulPhysicsEngine).addBoxCollider(*mCollider);
+	service(Core::BulPhysicsEngine).addCollider(*mCollider);
 }
 
 void BulBoxCollider::updateTransform()
@@ -79,23 +62,22 @@ void BulBoxCollider::updateTransform()
 	delete mCollider;
 	createCollider();
 
-	service(Core::BulPhysicsEngine).addBoxCollider(*mCollider);
-	
+	service(Core::BulPhysicsEngine).addCollider(*mCollider);
 }
 
 void BulBoxCollider::createCollider()
 {
 	btVector3 inertia;
-	mBox = btBoxShape(btVector3(mSize.x, mSize.y, mSize.z));
+	mBox = btBoxShape(btVector3(mSize.x / 2, mSize.y / 2, mSize.z / 2));
 	mBox.calculateLocalInertia(mMass, inertia);
 
 	btTransform transform;
 	transform.setIdentity();
-	transform.setOrigin(btVector3(mPosition.x, mPosition.y, mPosition.z));
+	transform.setOrigin(btVector3(mPosition.x + mCenter.x, mPosition.y + mCenter.y, mPosition.z + mCenter.z));
 	Maths::FMatrix4 mat4 = mRotation.toMatrix4();
 	transform.setBasis(btMatrix3x3(mat4.data[0][0], mat4.data[1][0], mat4.data[2][0], mat4.data[0][1], mat4.data[1][1], mat4.data[2][1], mat4.data[0][2], mat4.data[1][2], mat4.data[2][2]));
 	mMotion = btDefaultMotionState(transform);
-
+	
 	btRigidBody::btRigidBodyConstructionInfo info(mMass, &mMotion, &mBox, inertia);
 
 	mCollider = new btRigidBody(info);

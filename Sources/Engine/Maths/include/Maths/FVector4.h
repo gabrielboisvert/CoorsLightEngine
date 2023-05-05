@@ -1,5 +1,7 @@
 #pragma once
 
+#include <string>
+
 namespace Maths
 {
 	struct FVector4
@@ -111,5 +113,7 @@ namespace Maths
 		float magnitudeSquared();
 
 		static FVector4 lerp(const FVector4& pA, const FVector4& pB, float pT);
+
+		std::string toString();
 	};
 }

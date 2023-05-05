@@ -1,4 +1,5 @@
 #include "Maths/FTransform.h"
+#include <iostream>
 
 using namespace Maths;
 
@@ -23,7 +24,7 @@ void FTransform::notificationHandler(Internal::TransformNotifier::ENotification 
 		break;
 
 	case Internal::TransformNotifier::ENotification::TRANSFORM_DESTROYED:
-		/* 
+		/*
 		* RemoveParent() is not called here because it is unsafe to remove a notification handler
 		* while the parent is iterating on his notification handlers (Segfault otherwise)
 		*/
@@ -50,7 +51,6 @@ bool FTransform::removeParent()
 {
 	if (mParent == nullptr)
 		return false;
-
 
 	mParent->notifier.removeNotificationHandler(notificationHandlerID);
 	mParent = nullptr;
@@ -86,6 +86,13 @@ void Maths::FTransform::updateLocalMatrix()
 	mLocalMatrix = FMatrix4::translation(mLocalPosition) * FQuaternion::toMatrix4(FQuaternion::normalize(mLocalRotation)) * FMatrix4::scaling(mLocalScale);
 
 	updateWorldMatrix();
+}
+
+void FTransform::printWorld()
+{
+	std::cout << "World Position: X: " << mWorldPosition.x << " Y: " << mWorldPosition.y << " Z: " << mWorldPosition.z << std::endl;
+	std::cout << "World Rotation: X: " << mWorldRotation.x << " Y: " << mWorldRotation.y << " Z: " << mWorldRotation.z << " W: " << mWorldRotation.w << std::endl;
+	std::cout << "World Scale: X: " << mWorldScale.x << " Y: " << mWorldScale.y << " Z: " << mWorldScale.z << std::endl;
 }
 
 void FTransform::setLocalPosition(FVector3 p_newPosition)
@@ -173,7 +180,7 @@ const FMatrix4& FTransform::getLocalMatrix() const
 	return mLocalMatrix;
 }
 
-const FMatrix4& FTransform::getWorldMatrix() const
+FMatrix4& FTransform::getWorldMatrix()
 {
 	return mWorldMatrix;
 }
@@ -210,15 +217,15 @@ FVector3 FTransform::getLocalRight() const
 
 void FTransform::decomposeWorldMatrix()
 {
-	mWorldPosition.x = mWorldMatrix(0, 3);
-	mWorldPosition.y = mWorldMatrix(1, 3);
-	mWorldPosition.z = mWorldMatrix(2, 3);
+	mWorldPosition.x = mWorldMatrix(3, 0);
+	mWorldPosition.y = mWorldMatrix(3, 1);
+	mWorldPosition.z = mWorldMatrix(3, 2);
 
-	FVector3 columns[3] = 
+	FVector3 columns[3] =
 	{
-		{ mWorldMatrix(0, 0), mWorldMatrix(1, 0), mWorldMatrix(2, 0)},
-		{ mWorldMatrix(0, 1), mWorldMatrix(1, 1), mWorldMatrix(2, 1)},
-		{ mWorldMatrix(0, 2), mWorldMatrix(1, 2), mWorldMatrix(2, 2)},
+		{ mWorldMatrix(0, 0), mWorldMatrix(0, 1), mWorldMatrix(0, 2)},
+		{ mWorldMatrix(1, 0), mWorldMatrix(1, 1), mWorldMatrix(1, 2)},
+		{ mWorldMatrix(2, 0), mWorldMatrix(2, 1), mWorldMatrix(2, 2)},
 	};
 
 	mWorldScale.x = FVector3::length(columns[0]);
@@ -246,15 +253,15 @@ void FTransform::decomposeWorldMatrix()
 
 void FTransform::decomposeLocalMatrix()
 {
-	mLocalPosition.x = mLocalMatrix(0, 3);
-	mLocalPosition.y = mLocalMatrix(1, 3);
-	mLocalPosition.z = mLocalMatrix(2, 3);
+	mLocalPosition.x = mLocalMatrix(3, 0);
+	mLocalPosition.y = mLocalMatrix(3, 1);
+	mLocalPosition.z = mLocalMatrix(3, 2);
 
 	FVector3 columns[3] =
 	{
-		{ mLocalMatrix(0, 0), mLocalMatrix(1, 0), mLocalMatrix(2, 0)},
-		{ mLocalMatrix(0, 1), mLocalMatrix(1, 1), mLocalMatrix(2, 1)},
-		{ mLocalMatrix(0, 2), mLocalMatrix(1, 2), mLocalMatrix(2, 2)},
+		{ mLocalMatrix(0, 0), mLocalMatrix(0, 1), mLocalMatrix(0, 2)},
+		{ mLocalMatrix(1, 0), mLocalMatrix(1, 1), mLocalMatrix(1, 2)},
+		{ mLocalMatrix(2, 0), mLocalMatrix(2, 1), mLocalMatrix(2, 2)},
 	};
 
 	mLocalScale.x = FVector3::length(columns[0]);

@@ -27,11 +27,11 @@ namespace EngineCore::ResourcesManagement
 	{
 		{
 			std::unique_lock lock(mManagerMutex);
-			
+
 			std::unordered_map<std::string, Rendering::Resources::IResource*>::iterator it = mManager.find(pStr);
 			if (it != mManager.end())
 				return (T*)it->second;
-
+		
 			mManager[pStr] = nullptr;
 		}
 

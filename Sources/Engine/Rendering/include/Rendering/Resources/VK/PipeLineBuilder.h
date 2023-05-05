@@ -28,9 +28,9 @@ namespace Rendering::Renderer::Resources::VK
 		VkPipeline buildPipeline(VkRenderPass pPass);
 		void clearVertexInput();
 		
-		static Rendering::Data::Material initPipeLine(const std::string& pVertex, const std::string& pfrag, VkRenderPass pPass, bool pClearVertex = false, bool pDebugVertex = false);
+		static Rendering::Data::Material initPipeLine(const std::string& pVertex, const std::string& pfrag, VkRenderPass pPass, bool pClearVertex = false, bool pDebugVertex = false, bool pDethTest = true, bool pStencil = false, bool pParticle = false);
 
 
-		static Rendering::Data::Material initPipeLine(Data::Shader& pShader, VkRenderPass pPass, bool pClearVertex, bool pDebugVertex);
+		static Rendering::Data::Material initPipeLine(Data::Shader& pShader, VkRenderPass pPass, bool pClearVertex, bool pDebugVertex, bool pDethTest, bool pStencil, bool pParticle);
 	};
 }

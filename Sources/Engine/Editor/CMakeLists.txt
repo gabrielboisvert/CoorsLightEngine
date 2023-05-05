@@ -36,6 +36,8 @@ source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${HEADER_FILES} ${SOURCE_FIL
 
 add_library(${PROJECT_NAME} STATIC)
 target_sources(${PROJECT_NAME} PRIVATE ${SOURCE_FILES} ${HEADER_FILES})
+#set_target_properties(${TARGET_NAME} PROPERTIES EXCLUDE_FROM_ALL TRUE)
+include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/${PROJECT_NAME}/${INCLUDE_FOLDE})
 
 foreach( project_i ${THIRD_PARTY_PROJECT})
 	include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/${project_i}/${INCLUDE_FOLDE})
@@ -46,9 +48,13 @@ foreach( include_i ${THIRD_PARTY_INCLUDE})
 endforeach( include_i )
 
 #Qt6
-file(GLOB_RECURSE QT_LIB ${PROJECT_NAME} PUBLIC ${DEPENDS_DIR}/Qt6/lib/*.lib)
+file(GLOB_RECURSE QT_LIB ${PROJECT_NAME} PUBLIC ${DEPENDS_DIR}/Qt6/lib/release/*.lib)
 target_link_libraries(${PROJECT_NAME} ${QT_LIB})
 
 #Qt advenced docking
-file(GLOB_RECURSE QT_DOCKE_LIB ${PROJECT_NAME} PUBLIC ${DEPENDS_DIR}/Qtadvanceddocking/lib/*.lib)
-target_link_libraries(${PROJECT_NAME} ${QT_DOCKE_LIB})
+target_link_libraries(${PROJECT_NAME} ${DEPENDS_DIR}/Qtadvanceddocking/lib/qtadvanceddocking.lib)
+
+#Qt Nodes
+target_link_libraries(${PROJECT_NAME} 
+						debug ${DEPENDS_DIR}/QTNodes/lib/debug/QtNodesd.lib
+						optimized ${DEPENDS_DIR}/QTNodes/lib/release/QtNodes.lib)

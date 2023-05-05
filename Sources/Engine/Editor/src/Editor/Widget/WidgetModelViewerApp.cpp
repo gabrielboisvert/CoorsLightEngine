@@ -10,22 +10,29 @@
 #include "Editor/Utils/Utils.h"
 #include "EngineCore/Service/ServiceLocator.h"
 #include "EngineCore/ResourceManagement/ResourceManager.h"
+#include "EngineCore/EventSystem/InputManager.h"
+#include <QtCore/qfileinfo.h>
+#include "Tools/Utils/PathParser.h"
 
 using namespace Editor::Widget;
 
 WidgetModelViewerApp::WidgetModelViewerApp(QSettings& pSetting, QWidget* pParent) :
 	ads::CDockWidget("Asset View"), mWindow("", 800, 800), mCamera(mWindow.mWidth, mWindow.mHeight),
 	mUnibuffer(VK_SHADER_STAGE_VERTEX_BIT), mGridUnibuffer(VK_SHADER_STAGE_VERTEX_BIT),
-	mDefaultTexture("Resources/Editor/Textures/default.png")
+	mDefaultTexture("Resources/Engine/Textures/default.png")
 {
 	renderer.init(mWindow);
 
 	mUnibuffer.mData.mModel = Maths::FMatrix4::createTransformMatrix({}, { }, { Maths::FVector3::One });
 
 	mDefaultMat = new  Rendering::Data::Material(Rendering::Renderer::Resources::VK::PipeLineBuilder()
-		.initPipeLine("Resources/Editor/Shaders/ModelVertex.vert.spv", "Resources/Editor/Shaders/ModelFrag.frag.spv", renderer.mRenderPass, false));
+		.initPipeLine("Resources/Engine/Shaders/ModelVertex.vert.spv", "Resources/Engine/Shaders/ModelFrag.frag.spv", renderer.mRenderPass, false));
 	mDefaultMat->bindDescriptor("ubo", mUnibuffer.mDescriptorSets);
-	mDefaultMat->bindDescriptor("texSampler", mDefaultTexture.mTextureSets);
+	mDefaultMat->bindDescriptor("texAlbedo", mDefaultTexture.mTextureSets);
+	mDefaultMat->bindDescriptor("texNormal", mDefaultTexture.mTextureSets);
+	mDefaultMat->bindDescriptor("texMetallic", mDefaultTexture.mTextureSets);
+	mDefaultMat->bindDescriptor("texRoughness", mDefaultTexture.mTextureSets);
+	mDefaultMat->bindDescriptor("texAO", mDefaultTexture.mTextureSets);
 
 	mGridMat = new  Rendering::Data::Material(Rendering::Renderer::Resources::VK::PipeLineBuilder()
 		.initPipeLine("Resources/Editor/Shaders/gridVertex.vert.spv", "Resources/Editor/Shaders/gridFrag.frag.spv", renderer.mRenderPass, true));
@@ -79,7 +86,10 @@ void WidgetModelViewerApp::run()
 		{
 			mIsActive = true;
 
-			//Rendering::LineDrawer lines(renderer, mUnibuffer.mData, "Resources/Editor/Shaders/LineVertex.vert.spv", "Resources/Editor/Shaders/LineFrag.frag.spv");
+			Rendering::LineDrawer lines(renderer);
+
+			EngineCore::EventSystem::InputManager input;
+			mWindow.setInputManager(&input);
 
 			Rendering::Resources::Model* oldModel = nullptr;
 			while (!isClosed())
@@ -89,8 +99,8 @@ void WidgetModelViewerApp::run()
 				if (oldModel != mModel)
 				{
 					oldModel = mModel;
-					//createBoundingBox(lines);
 					updateModelTransform();
+					createBoundingBox(lines);
 				}
 
 				if (renderer.mFramebufferResized)
@@ -98,18 +108,22 @@ void WidgetModelViewerApp::run()
 					int width, height;
 					mWindow.getFramebufferSize(&width, &height);
 					mCamera.updateProjection(width, height);
+
+					renderer.mFramebufferResized = false;
 				}
 
-				Maths::FVector2 dif = mWindow.getMousePositionDifference();
-				if (mWindow.mMouse.isLeftPressed())
+				input.processInput();
+
+				Maths::FVector2 dif = input.mMouse.getPositionDifference();
+				if (input.mMouse.isLeftPressed())
 					mCamera.update(dif);
 
 				// Zoom in and out with the mouse wheel
 				// The mouse wheel callback return 1 or -1
-				if (mWindow.mMouse.isScrolling())
+				if (input.mMouse.isScrolling())
 				{
-					mCamera.zoom(mWindow.mMouse.mScroll);
-					mWindow.mMouse.mScroll = 0;
+					mCamera.zoom(input.mMouse.mScroll);
+					input.mMouse.mScroll = 0;
 				}
 
 				mGridUnibuffer.mData.mView = mCamera.lookAt();
@@ -119,6 +133,8 @@ void WidgetModelViewerApp::run()
 				mUnibuffer.mData.mViewProjection = mCamera.viewProj();
 				mUnibuffer.updateData();
 
+				lines.updateViewProj(mCamera.viewProj());
+
 				renderer.beginFrame();
 
 				//Model
@@ -127,7 +143,7 @@ void WidgetModelViewerApp::run()
 					mModel->draw(renderer.getCurrentCommandBuffer());
 
 				//Line
-				//lines.flushLines();
+				lines.flushLines();
 
 				//Grid
 				mGridMat->bindPipeLine(renderer.getCurrentCommandBuffer());
@@ -146,27 +162,27 @@ void WidgetModelViewerApp::createBoundingBox(Rendering::LineDrawer& pLinesDrawer
 {
 	pLinesDrawer.reset();
 
-	if (mModel != nullptr)
-	{
-		pLinesDrawer.drawLine(mModel->mBox.mMin, { mModel->mBox.mMin.x, mModel->mBox.mMin.y, mModel->mBox.mMax.z }, { 0, 1, 0 });
-		pLinesDrawer.drawLine(mModel->mBox.mMin, { mModel->mBox.mMin.x, mModel->mBox.mMax.y, mModel->mBox.mMin.z }, { 0, 1, 0 });
-		pLinesDrawer.drawLine(mModel->mBox.mMin, { mModel->mBox.mMax.x, mModel->mBox.mMin.y, mModel->mBox.mMin.z }, { 0, 1, 0 });
+	if (mModel == nullptr)
+		return;
+	
+	pLinesDrawer.drawLine(mModel->mBox.mMin, { mModel->mBox.mMin.x, mModel->mBox.mMin.y, mModel->mBox.mMax.z }, { 0, 1, 0 });
+	pLinesDrawer.drawLine(mModel->mBox.mMin, { mModel->mBox.mMin.x, mModel->mBox.mMax.y, mModel->mBox.mMin.z }, { 0, 1, 0 });
+	pLinesDrawer.drawLine(mModel->mBox.mMin, { mModel->mBox.mMax.x, mModel->mBox.mMin.y, mModel->mBox.mMin.z }, { 0, 1, 0 });
 
-		pLinesDrawer.drawLine(mModel->mBox.mMax, { mModel->mBox.mMax.x, mModel->mBox.mMax.y, mModel->mBox.mMin.z }, { 0, 1, 0 });
-		pLinesDrawer.drawLine(mModel->mBox.mMax, { mModel->mBox.mMax.x, mModel->mBox.mMin.y, mModel->mBox.mMax.z }, { 0, 1, 0 });
-		pLinesDrawer.drawLine(mModel->mBox.mMax, { mModel->mBox.mMin.x, mModel->mBox.mMax.y, mModel->mBox.mMax.z }, { 0, 1, 0 });
+	pLinesDrawer.drawLine(mModel->mBox.mMax, { mModel->mBox.mMax.x, mModel->mBox.mMax.y, mModel->mBox.mMin.z }, { 0, 1, 0 });
+	pLinesDrawer.drawLine(mModel->mBox.mMax, { mModel->mBox.mMax.x, mModel->mBox.mMin.y, mModel->mBox.mMax.z }, { 0, 1, 0 });
+	pLinesDrawer.drawLine(mModel->mBox.mMax, { mModel->mBox.mMin.x, mModel->mBox.mMax.y, mModel->mBox.mMax.z }, { 0, 1, 0 });
 
-		pLinesDrawer.drawLine({ mModel->mBox.mMin.x, mModel->mBox.mMax.y, mModel->mBox.mMax.z }, { mModel->mBox.mMin.x, mModel->mBox.mMax.y, mModel->mBox.mMin.z }, { 0, 1, 0 });
-		pLinesDrawer.drawLine({ mModel->mBox.mMax.x, mModel->mBox.mMax.y, mModel->mBox.mMin.z }, { mModel->mBox.mMin.x, mModel->mBox.mMax.y, mModel->mBox.mMin.z }, { 0, 1, 0 });
+	pLinesDrawer.drawLine({ mModel->mBox.mMin.x, mModel->mBox.mMax.y, mModel->mBox.mMax.z }, { mModel->mBox.mMin.x, mModel->mBox.mMax.y, mModel->mBox.mMin.z }, { 0, 1, 0 });
+	pLinesDrawer.drawLine({ mModel->mBox.mMax.x, mModel->mBox.mMax.y, mModel->mBox.mMin.z }, { mModel->mBox.mMin.x, mModel->mBox.mMax.y, mModel->mBox.mMin.z }, { 0, 1, 0 });
 
-		pLinesDrawer.drawLine({ mModel->mBox.mMin.x, mModel->mBox.mMax.y, mModel->mBox.mMax.z }, { mModel->mBox.mMin.x, mModel->mBox.mMin.y, mModel->mBox.mMax.z }, { 0, 1, 0 });
-		pLinesDrawer.drawLine({ mModel->mBox.mMax.x, mModel->mBox.mMax.y, mModel->mBox.mMin.z }, { mModel->mBox.mMax.x, mModel->mBox.mMin.y, mModel->mBox.mMin.z }, { 0, 1, 0 });
+	pLinesDrawer.drawLine({ mModel->mBox.mMin.x, mModel->mBox.mMax.y, mModel->mBox.mMax.z }, { mModel->mBox.mMin.x, mModel->mBox.mMin.y, mModel->mBox.mMax.z }, { 0, 1, 0 });
+	pLinesDrawer.drawLine({ mModel->mBox.mMax.x, mModel->mBox.mMax.y, mModel->mBox.mMin.z }, { mModel->mBox.mMax.x, mModel->mBox.mMin.y, mModel->mBox.mMin.z }, { 0, 1, 0 });
 
-		pLinesDrawer.drawLine({ mModel->mBox.mMax.x, mModel->mBox.mMin.y, mModel->mBox.mMax.z }, { mModel->mBox.mMin.x, mModel->mBox.mMin.y, mModel->mBox.mMax.z }, { 0, 1, 0 });
-		pLinesDrawer.drawLine({ mModel->mBox.mMax.x, mModel->mBox.mMin.y, mModel->mBox.mMax.z }, { mModel->mBox.mMax.x, mModel->mBox.mMin.y, mModel->mBox.mMin.z }, { 0, 1, 0 });
+	pLinesDrawer.drawLine({ mModel->mBox.mMax.x, mModel->mBox.mMin.y, mModel->mBox.mMax.z }, { mModel->mBox.mMin.x, mModel->mBox.mMin.y, mModel->mBox.mMax.z }, { 0, 1, 0 });
+	pLinesDrawer.drawLine({ mModel->mBox.mMax.x, mModel->mBox.mMin.y, mModel->mBox.mMax.z }, { mModel->mBox.mMax.x, mModel->mBox.mMin.y, mModel->mBox.mMin.z }, { 0, 1, 0 });
 
-		pLinesDrawer.createVertexBuffer();
-	}
+	pLinesDrawer.mUniformBuffer.mData.mModel = mUnibuffer.mData.mModel;
 }
 
 void WidgetModelViewerApp::updateModelTransform()
@@ -190,8 +206,6 @@ void WidgetModelViewerApp::close()
 	toggleView(false);
 }
 
-#include <QtCore/qfileinfo.h>
-#include "Tools/Utils/PathParser.h"
 bool WidgetModelViewerApp::eventFilter(QObject* obj, QEvent* pEvent)
 {
 	if (pEvent->type() == QEvent::DragEnter)
@@ -199,7 +213,7 @@ bool WidgetModelViewerApp::eventFilter(QObject* obj, QEvent* pEvent)
 	else if (pEvent->type() == QEvent::Drop)
 	{
 		QFileInfo info = QFileInfo(((QDropEvent*)pEvent)->mimeData()->text());
-		if (Tools::Utils::PathParser::getFileType(info.suffix()) != Tools::Utils::PathParser::EFileType::MODEL)
+		if (Utils::getFileType(info.suffix()) != Tools::Utils::PathParser::EFileType::MODEL)
 			return QObject::eventFilter(obj, pEvent);
 
 		std::string path = Utils::qStringToStdString(info.absoluteFilePath());

@@ -76,7 +76,7 @@ void WidgetSelectableBrowser::dropFromExtern(QDropEvent* e)
 		Utils::copyFileAndDir(url.toLocalFile(), mPath, this);
 	
 		QFileInfo info(url.toLocalFile());
-		Tools::Utils::PathParser::EFileType type = Tools::Utils::PathParser::getFileType(info.suffix());
+		Tools::Utils::PathParser::EFileType type = Utils::getFileType(info.suffix());
 		if (type == Tools::Utils::PathParser::EFileType::MODEL)
 			service(Editor::Widget::WidgetEditor).loadFile<Rendering::Resources::Model>(mPath + "/" + info.fileName(), info.baseName());
 	}
@@ -174,7 +174,7 @@ void WidgetSelectableBrowser::import()
 		mApp.mApp.updateContentDir(mPath);
 
 		QFileInfo info(fileName);
-		Tools::Utils::PathParser::EFileType type = Tools::Utils::PathParser::getFileType(info.suffix());
+		Tools::Utils::PathParser::EFileType type = Utils::getFileType(info.suffix());
 		if (type == Tools::Utils::PathParser::EFileType::MODEL)
 			service(Editor::Widget::WidgetEditor).loadFile<Rendering::Resources::Model>(mPath + "/" + info.fileName(), info.baseName());
 	}

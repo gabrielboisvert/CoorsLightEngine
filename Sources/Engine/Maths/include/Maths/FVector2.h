@@ -8,6 +8,10 @@ namespace Maths
 		static const FVector2 Zero;
 		static const FVector2 UnitX;
 		static const FVector2 UnitY;
+		static const FVector2 Left;
+		static const FVector2 Right;
+		static const FVector2 Up;
+		static const FVector2 Down;
 
 		float x;
 		float y;

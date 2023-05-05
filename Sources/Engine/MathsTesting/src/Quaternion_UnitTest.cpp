@@ -237,7 +237,7 @@ TEST_CASE("Quaternion", "[.all][Quaternion]")
 
 		SECTION("length2")
 		{
-			float lengthSquared = Maths::FQuaternion::lengthSquare(base);
+			float lengthSquared = Maths::FQuaternion::lengthSquared(base);
 
 			float lengthSquaredGlm = glm::length(baseGlm) * glm::length(baseGlm);
 

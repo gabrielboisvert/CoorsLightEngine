@@ -14,36 +14,55 @@
 #include <QtWidgets/qlabel.h>
 #include <QtGui/qevent.h>
 #include <QtWidgets/qpushbutton.h>
+#include <Editor/Widget/WidgetSceneApp.h>
+#include "Editor/Widget/WidgetContentBrowser.h"
+#include "Editor/Data/ProjectLocation.h"
+#include "QtWidgets/qfiledialog.h"
+#include <QtCore/qsavefile.h>
+#include <QtWidgets/qmessagebox.h>
 
 
 using namespace Editor::Widget;
 
 WidgetGameObjectTreeItem::WidgetGameObjectTreeItem(QSettings& pSetting, const QString& pText) 
-	: QStandardItem(pText), mDatas(pSetting, this), mSetting(pSetting)
+	: QStandardItem(pText), mSetting(pSetting)
 {
+	mActor = new Game::Data::Actor();
+	mEditorActor = new Editor::Data::Actor(*mActor, this);
+	
+	service(Editor::Widget::WidgetSceneApp).addActor(mEditorActor);
 	service(Game::SceneSys::SceneManager).mCurrentScene->addActor(mActor);
 	service(EngineCore::Thread::ThreadPool).queueJob([pText]
 	{
 		WidgetConsole::infoPrint("%s Created", Utils::qStringToStdString(pText));
 	});
+
+	mDatas = new WidgetInspectorData(pSetting, this);
 }
 
 WidgetGameObjectTreeItem::WidgetGameObjectTreeItem(const WidgetGameObjectTreeItem& pOther) 
-	: QStandardItem(pOther.text()), mActor(pOther.mActor), mDatas(mSetting, this), mSetting(pOther.mSetting)
+	: QStandardItem(pOther.text()), mSetting(pOther.mSetting)
 {
 	QString str = pOther.text();
+	mActor = new Game::Data::Actor(*pOther.mActor);
+	mEditorActor = new Editor::Data::Actor(*mActor, this);
 
+	service(Editor::Widget::WidgetSceneApp).addActor(mEditorActor);
 	service(Game::SceneSys::SceneManager).mCurrentScene->addActor(mActor);
 	service(EngineCore::Thread::ThreadPool).queueJob([str]
 	{
 		WidgetConsole::infoPrint("%s Created", Utils::qStringToStdString(str));
 	});
+
+	mDatas = new WidgetInspectorData(pOther.mSetting, this);
 }
 
 WidgetGameObjectTreeItem::~WidgetGameObjectTreeItem()
 {
 	//TODO remove item from scene
-	service(Game::SceneSys::SceneManager).mCurrentScene->mActors.remove(&mActor);
+	service(Editor::Widget::WidgetSceneApp).removeActor(mEditorActor);
+	service(Game::SceneSys::SceneManager).mCurrentScene->removeActor(mActor);
+	delete mDatas;
 }
 
 void WidgetGameObjectTreeItem::onItemChanged()
@@ -54,7 +73,7 @@ void WidgetGameObjectTreeItem::onItemChanged()
 	((WidgetGameObjectTreeModel*)mModel)->mShouldEdit = false;
 	mModel = nullptr;
 
-	mDatas.mGameObjectName->setText(text());
+	mDatas->mGameObjectName->setText(text());
 }
 
 void WidgetGameObjectTreeItem::showContextMenu(QSettings& pSetting, const QPoint& pPoint, QWidget* pParent)
@@ -63,6 +82,14 @@ void WidgetGameObjectTreeItem::showContextMenu(QSettings& pSetting, const QPoint
 
 	WidgetMenuSeperator sepaAssets(pSetting, pSetting.value("CategoryData").toString(), pSetting.value("SeparatorIcon").toString(), &contextMenu);
 	contextMenu.addAction(sepaAssets.mAction);
+
+	QAction saveNew(QIcon(pSetting.value("CategorySaveNewIcon").toString()), pSetting.value("CategorySaveNewName").toString());
+	pParent->connect(&saveNew, &QAction::triggered, pParent, [pParent, this] { this->saveNew();  });
+	contextMenu.addAction(&saveNew);
+
+	QAction saveTo(QIcon(pSetting.value("CategorySaveIcon").toString()), pSetting.value("CategorySaveName").toString());
+	pParent->connect(&saveTo, &QAction::triggered, pParent, [pParent, this] { this->saveTo();  });
+	contextMenu.addAction(&saveTo);
 
 	QAction create(QIcon(pSetting.value("CategoryCreateIcon").toString()), pSetting.value("CategoryCreateName").toString());
 	pParent->connect(&create, &QAction::triggered, pParent, [pParent, this] { this->create(pParent);  });
@@ -94,11 +121,11 @@ void WidgetGameObjectTreeItem::showContextMenu(QSettings& pSetting, const QPoint
 
 void WidgetGameObjectTreeItem::appendRow(WidgetGameObjectTreeItem* pItem)
 {
-	Maths::FTransform* transform = ((WidgetGameObjectTreeItem*)pItem)->mActor.getTransform();
-	if (transform->mParent == this->mActor.getTransform())
+	Maths::FTransform* transform = ((WidgetGameObjectTreeItem*)pItem)->mActor->getTransform();
+	if (transform->mParent == this->mActor->getTransform())
 		return;
 
-	transform->setParent(*mActor.getTransform());
+	transform->setParent(*mActor->getTransform());
 	service(EngineCore::Thread::ThreadPool).queueJob([=]
 	{
 		WidgetConsole::infoPrint("%s became child of %s", Utils::qStringToStdString(pItem->text()), Utils::qStringToStdString(text()));
@@ -110,11 +137,11 @@ void WidgetGameObjectTreeItem::appendRow(QList<QStandardItem*>& pItems)
 {
 	for (QStandardItem* item : pItems)
 	{
-		Maths::FTransform* transform = ((WidgetGameObjectTreeItem*)item)->mActor.getTransform();
-		if (transform->mParent == this->mActor.getTransform())
+		Maths::FTransform* transform = ((WidgetGameObjectTreeItem*)item)->mActor->getTransform();
+		if (transform->mParent == this->mActor->getTransform())
 			continue;
 
-		transform->setParent(*mActor.getTransform());
+		transform->setParent(*mActor->getTransform());
 		service(EngineCore::Thread::ThreadPool).queueJob([=]
 		{
 			WidgetConsole::infoPrint("%s became child of %s", Utils::qStringToStdString(item->text()), Utils::qStringToStdString(text()));
@@ -177,4 +204,103 @@ void WidgetGameObjectTreeItem::deleteItem(QWidget* pParent)
 	WidgetGameObjectTree* tree = ((WidgetGameObjectTree*)pParent);
 	QModelIndex idx = tree->mTreeModel.indexFromItem(this);
 	tree->mTreeModel.removeRow(idx.row(), idx.parent());
+}
+
+void WidgetGameObjectTreeItem::saveNew()
+{
+	QString Defaultpath = service(Data::ProjectLocation).mFolder;
+	QString path = Utils::uniqueString(Defaultpath + "/" + text(), "fab");
+	QFile file(path);
+	file.open(QIODevice::WriteOnly);
+	file.close();
+	save(path);
+}
+
+void WidgetGameObjectTreeItem::saveTo()
+{
+	QString Defaultpath = service(Data::ProjectLocation).mFolder;
+
+	QString filter = "Prefab File (*.fab)";
+
+	QFileDialog dialog(nullptr, QString("Open Prefab"), Defaultpath, filter);
+	(new QWidget())->connect(&dialog, &QFileDialog::directoryEntered, [&dialog, Defaultpath, this](QString path)
+	{
+		if (!path.contains(Defaultpath))
+			dialog.setDirectory(Defaultpath);
+	});
+
+	if (dialog.exec() != QDialog::Accepted)
+		return;
+
+	QString fileName = dialog.selectedFiles().first();
+	if (!fileName.isEmpty())
+		save(fileName);
+}
+
+void WidgetGameObjectTreeItem::save(QString path)
+{
+	QString errorMessage;
+	rapidjson::StringBuffer ss;
+	rapidjson::PrettyWriter<rapidjson::StringBuffer> writer(ss);
+
+	QSaveFile file(QUrl::fromLocalFile(path).toLocalFile());
+	if (file.open(QIODevice::WriteOnly | QIODevice::Text))
+	{
+		WidgetGameObjectTreeItem* currItem = this;
+
+		writer.StartObject();
+
+		writer.Key("Name");
+		writer.String(Utils::qStringToStdString(text()).c_str());
+
+		currItem->mActor->serialize(writer);
+
+		writer.Key("Childs");
+		writer.StartArray();
+			serializeItemChild(currItem, writer);
+		writer.EndArray();
+
+		writer.EndObject();
+
+
+		std::string s = ss.GetString();
+		file.write(s.c_str());
+
+		if (!file.commit())
+		{
+			errorMessage = QSaveFile::tr("Cannot write file %1:\n%2.")
+				.arg(QDir::toNativeSeparators(path), file.errorString());
+		}
+	}
+	else
+	{
+		errorMessage = QSaveFile::tr("Cannot open file %1 for writing:\n%2.")
+			.arg(QDir::toNativeSeparators(path), file.errorString());
+	}
+
+	if (!errorMessage.isEmpty())
+		QMessageBox::warning(nullptr, QSaveFile::tr("Application"), errorMessage);
+}
+
+void WidgetGameObjectTreeItem::serializeItemChild(QStandardItem* pItem, rapidjson::PrettyWriter<rapidjson::StringBuffer>& pWriter)
+{
+	int numChildren = pItem->rowCount();
+	for (int i = 0; i < numChildren; ++i)
+	{
+		WidgetGameObjectTreeItem* currItem = (WidgetGameObjectTreeItem*)pItem->child(i, 0);
+
+		pWriter.StartObject();
+
+		pWriter.Key("Name");
+		pWriter.String(Utils::qStringToStdString(currItem->text()).c_str());
+
+		currItem->mActor->serialize(pWriter);
+
+		pWriter.Key("Childs");
+		pWriter.StartArray();
+		serializeItemChild(currItem, pWriter);
+		pWriter.EndArray();
+
+		pWriter.EndObject();
+	}
 }

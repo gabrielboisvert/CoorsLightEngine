@@ -14,12 +14,17 @@ namespace Rendering::Resources
 			VkImageView mImageView;
 			VkSampler mTextureSampler;
 			VkDescriptorSet mTextureSets;
+			static VkFormat imageFormat;
+			static VkFormat imageFormatText;
 
 			Texture(const std::string& pFileName);
+			Texture(unsigned int width, unsigned int height, unsigned char* data);
 			~Texture() override;
 
 			void createTextureImage(const std::string& pFileName);
+			void createTextureImageText(unsigned int width, unsigned int height, unsigned char* data);
 			void createTextureImageView();
+			void createTextureImageViewText();
 			void createTextureSampler();
 			void createDescritorSet();
 	};

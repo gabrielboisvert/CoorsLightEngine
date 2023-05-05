@@ -11,6 +11,7 @@ Rendering::Data::AllocatedBuffer VKBuffer::createBuffer(size_t pAllocSize, VkBuf
 	bufferInfo.pNext = nullptr;
 	bufferInfo.size = pAllocSize;
 	bufferInfo.usage = pUsage;
+	bufferInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
 	VmaAllocationCreateInfo vmaallocInfo = {};
 	vmaallocInfo.usage = pMemoryUsage;

@@ -102,7 +102,7 @@ void Material::bindImage(const char* pName, const VkDescriptorImageInfo& pImageI
 
 void Material::buildSets()
 {
-	std::array<std::vector<VkWriteDescriptorSet>, 4> writes{};
+	std::array<std::vector<VkWriteDescriptorSet>, 8> writes{};
 
 	std::sort(mBufferWrites.begin(), mBufferWrites.end(), [](BufferWriteDescriptor& a, BufferWriteDescriptor& b) {
 		if (b.mDstSet == a.mDstSet)
@@ -134,7 +134,7 @@ void Material::buildSets()
 	}
 
 
-	for (int i = 0; i < 4; i++) {
+	for (int i = 0; i < 8; i++) {
 		//there are writes for this set
 		if (writes[i].size() > 0) {
 
@@ -159,6 +159,9 @@ void Material::buildSets()
 
 void Material::bindDescriptor(const char* pName, const VkDescriptorSet& pImageInfo)
 {
+	if (mShader == nullptr)
+		return;
+
 	auto found = mShader->mBindings.find(pName);
 	if (found == mShader->mBindings.end())
 		return;
@@ -166,6 +169,11 @@ void Material::bindDescriptor(const char* pName, const VkDescriptorSet& pImageIn
 	const Shader::ReflectedBinding& bind = (*found).second;
 	if (mCachedDescriptorSets[bind.mSet] != pImageInfo)
 		mCachedDescriptorSets[bind.mSet] = pImageInfo;
+}
+
+void Material::bindConstant(VkCommandBuffer pCmd, VkShaderStageFlags pStage, int pOffSet, int size, const void* pData)
+{
+	vkCmdPushConstants(pCmd, mShader->mBuiltLayout, pStage, pOffSet, size, pData);
 }
 
 void Material::applyBinds(VkCommandBuffer cmd)

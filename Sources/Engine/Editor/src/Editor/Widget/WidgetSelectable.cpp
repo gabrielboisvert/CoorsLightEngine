@@ -19,12 +19,19 @@ WidgetSelectable::WidgetSelectable(QSettings& pSetting, const QString& pProjectN
 	mLayout.addWidget(&mImage);
 	
 	if (!pIsAnimation)
+	{
 		mImage.setPixmap(QPixmap(pIcon));
+	}
 	else
 	{
-		mMovie = new QMovie(pIcon);
-		mImage.setMovie(mMovie);
-		mMovie->start();
+		if (pIcon.contains("gif"))
+		{
+			mMovie = new QMovie(pIcon);
+			mImage.setMovie(mMovie);
+			mMovie->start();
+		}
+		else
+			mImage.setPixmap(QPixmap(pIcon));
 	}
 	
 	mText.setAlignment(Qt::AlignHCenter);

@@ -1,5 +1,6 @@
 #pragma once
 #include "Game/Data/Actor.h"
+#include "Game/Component/CPLight.h"
 #include <list>
 
 namespace Game::SceneSys
@@ -8,12 +9,14 @@ namespace Game::SceneSys
 	{
 		public:
 			std::list<Data::Actor*> mActors;
+			std::list<Component::CPLight*> mLights;
 			std::mutex mMutex;
 
-			Scene() {};
+			Scene() = default;
+			~Scene();
+			void addActor(Data::Actor* mActor);
+			void removeActor(Data::Actor* mActor);
 
-			void addActor(Data::Actor& mActor);
-			
-			void lockActors();
+			std::vector<Data::Actor*> getActorsByTag(std::string pTag);
 	};
 }

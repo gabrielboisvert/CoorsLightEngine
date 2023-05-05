@@ -57,9 +57,9 @@ namespace Maths
 
 		float length();
 
-		static float lengthSquare(const FQuaternion& pTarget);
+		static float lengthSquared(const FQuaternion& pTarget);
 
-		float lengthSquare();
+		float lengthSquared();
 
 		static float getAngle(const FQuaternion& pTarget);
 
@@ -112,6 +112,8 @@ namespace Maths
 		FMatrix4 toMatrix4();
 
 		static FQuaternion toQuaternion(const FMatrix4& pMatrix4);
+
+		std::string toString();
 
 		bool operator==(const FQuaternion& pOtherQuat) const;
 		bool operator!=(const FQuaternion& pOtherQuat) const;

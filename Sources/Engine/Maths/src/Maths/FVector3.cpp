@@ -294,6 +294,11 @@ FVector3 FVector3::lerp(const FVector3& pA, const FVector3& pB, float pT)
 	return (pA + (pB - pA) * pT);
 }
 
+FVector3 Maths::FVector3::lerp(const FVector3& pB, float pT)
+{
+	return lerp(*this, pB, pT);
+}
+
 float FVector3::angleBetween(const FVector3& pFrom, const FVector3& pTo)
 {
 	float lengthProduct = length(pFrom) * length(pTo);

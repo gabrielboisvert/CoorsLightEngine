@@ -26,8 +26,8 @@ namespace Rendering::Data
 		Shader* mShader = nullptr;
 
 		std::vector<BufferWriteDescriptor> mBufferWrites;
-		std::array<VkDescriptorSet, 4> mCachedDescriptorSets;
-		std::array<DynOffsets, 4> mSetOffsets;
+		std::array<VkDescriptorSet, 8> mCachedDescriptorSets;
+		std::array<DynOffsets, 8> mSetOffsets;
 
 		~Material();
 		void bindBuffer(const char* pName, const VkDescriptorBufferInfo& pBufferInfo);
@@ -36,6 +36,7 @@ namespace Rendering::Data
 		void buildSets();
 
 		void bindDescriptor(const char* pName, const VkDescriptorSet& pImageInfo);
+		void bindConstant(VkCommandBuffer cmd, VkShaderStageFlags pStage, int pOffSet, int size, const void* pData);
 		void applyBinds(VkCommandBuffer cmd);
 		void bindPipeLine(VkCommandBuffer cmd);
 	};

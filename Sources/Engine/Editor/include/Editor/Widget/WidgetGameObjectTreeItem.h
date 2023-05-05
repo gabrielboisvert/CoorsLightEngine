@@ -4,6 +4,9 @@
 #include <QtCore/qsettings.h>
 #include "Game/Data/Actor.h"
 #include "Editor/Widget/WidgetInspectorData.h"
+#include "Editor/Data/Actor.h"
+#include "rapidjson/prettywriter.h"
+#include "rapidjson/stringbuffer.h"
 
 namespace Editor::Widget
 {
@@ -11,8 +14,9 @@ namespace Editor::Widget
 	{
 		public:
 			QStandardItemModel* mModel = nullptr;
-			Game::Data::Actor mActor;
-			WidgetInspectorData mDatas;
+			Game::Data::Actor* mActor = nullptr;
+			Editor::Data::Actor* mEditorActor = nullptr;
+			WidgetInspectorData* mDatas;
 			
 			QSettings& mSetting;
 
@@ -31,6 +35,11 @@ namespace Editor::Widget
 			void appendRow(WidgetGameObjectTreeItem* pItem);
 			void appendRow(QList<QStandardItem*>& pItems);
 
+			void saveNew();
+			void saveTo();
 
+			void save(QString path);
+
+			void serializeItemChild(QStandardItem* pItem, rapidjson::PrettyWriter<rapidjson::StringBuffer>& pWriter);
 	};
 }
