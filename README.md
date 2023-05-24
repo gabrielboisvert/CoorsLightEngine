@@ -22,7 +22,19 @@ Currently in development!
 ### Material system
 ![alt text](https://github.com/gabrielboisvert/CoorsLightEngine/blob/main/ScreenShot/Capture3.PNG)
 
-### Variety of Component
+### Decal system
+![alt text](https://github.com/gabrielboisvert/CoorsLightEngine/blob/main/ScreenShot/Decal.png)
+
+### Light and shadow, directional, point and spot
+![alt text](https://github.com/gabrielboisvert/CoorsLightEngine/blob/main/ScreenShot/Light.PNG)
+
+### UI Capability
+![alt text](https://github.com/gabrielboisvert/CoorsLightEngine/blob/main/ScreenShot/UI.PNG)
+
+### Actor picking
+![alt text](https://github.com/gabrielboisvert/CoorsLightEngine/blob/main/ScreenShot/itemPicking.PNG)
+
+### Lots of Component
 ![alt text](https://github.com/gabrielboisvert/CoorsLightEngine/blob/main/ScreenShot/Capture4.PNG)
 
 ### Docking system
