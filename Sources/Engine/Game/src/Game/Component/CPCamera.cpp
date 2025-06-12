@@ -20,8 +20,8 @@ CameraViewer::CameraViewer(Maths::FMatrix4& pViewProj)
 	mFrustrum = new Rendering::LineDrawer(service(Rendering::Renderer::VK::VKRenderer));
 	
 	mMat = new Rendering::Data::Material(Rendering::Renderer::Resources::VK::PipeLineBuilder()
-		.initPipeLine("Resources/Engine/Shaders/ModelVertex.vert.spv", 
-			"Resources/Engine/Shaders/ModelFrag.frag.spv", 
+		.initPipeLine("Resources/Engine/Shaders/UnlitModelVertex.vert.spv", 
+			"Resources/Engine/Shaders/UnlitModelFrag.frag.spv", 
 			service(Rendering::Renderer::VK::VKRenderer).mRenderPass, 
 			false));
 

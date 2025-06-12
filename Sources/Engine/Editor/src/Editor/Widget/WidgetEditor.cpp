@@ -955,7 +955,7 @@ void WidgetEditor::createPreview(std::string pFile, Rendering::Resources::Model*
     //Create renderer and material, texture and uniform buffer
     Rendering::Renderer::VK::VKOffScreenRenderer renderer(800, 800);
     Rendering::Data::Material mat = Rendering::Renderer::Resources::VK::PipeLineBuilder()
-        .initPipeLine("Resources/Engine/Shaders/ModelVertex.vert.spv", "Resources/Engine/Shaders/ModelFrag.frag.spv", renderer.mRenderPass, false);
+        .initPipeLine("Resources/Engine/Shaders/UnlitModelVertex.vert.spv", "Resources/Engine/Shaders/UnlitModelFrag.frag.spv", renderer.mRenderPass, false);
     Rendering::Resources::Texture text("Resources/Engine/Textures/default.png");
     Rendering::Buffers::VK::VKUniformBuffer<Rendering::Data::UniformData> unibuffer(VK_SHADER_STAGE_VERTEX_BIT);
 

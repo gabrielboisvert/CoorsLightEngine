@@ -26,7 +26,7 @@ WidgetModelViewerApp::WidgetModelViewerApp(QSettings& pSetting, QWidget* pParent
 	mUnibuffer.mData.mModel = Maths::FMatrix4::createTransformMatrix({}, { }, { Maths::FVector3::One });
 
 	mDefaultMat = new  Rendering::Data::Material(Rendering::Renderer::Resources::VK::PipeLineBuilder()
-		.initPipeLine("Resources/Engine/Shaders/ModelVertex.vert.spv", "Resources/Engine/Shaders/ModelFrag.frag.spv", renderer.mRenderPass, false));
+		.initPipeLine("Resources/Engine/Shaders/UnlitModelVertex.vert.spv", "Resources/Engine/Shaders/UnlitModelFrag.frag.spv", renderer.mRenderPass, false));
 	mDefaultMat->bindDescriptor("ubo", mUnibuffer.mDescriptorSets);
 	mDefaultMat->bindDescriptor("texAlbedo", mDefaultTexture.mTextureSets);
 	mDefaultMat->bindDescriptor("texNormal", mDefaultTexture.mTextureSets);

@@ -178,9 +178,22 @@ void Material::bindConstant(VkCommandBuffer pCmd, VkShaderStageFlags pStage, int
 
 void Material::applyBinds(VkCommandBuffer cmd)
 {
+	int count = 0;
 	for (int i = 0; i < mCachedDescriptorSets.size(); i++)
+	{
 		if (mCachedDescriptorSets[i] != VK_NULL_HANDLE)
-			vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, mShader->mBuiltLayout, i, 1, &mCachedDescriptorSets[i], mSetOffsets[i].count, mSetOffsets[i].offsets.data());
+		{
+			count++;
+		}
+	}
+
+	for (int i = 0; i < mCachedDescriptorSets.size(); i++)
+	{
+		if (mCachedDescriptorSets[i] != VK_NULL_HANDLE)
+		{
+			vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, mShader->mBuiltLayout, i, count - i, &mCachedDescriptorSets[i], mSetOffsets[i].count, mSetOffsets[i].offsets.data());
+		}
+	}
 }
 
 void Material::bindPipeLine(VkCommandBuffer cmd)
