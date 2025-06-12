@@ -14,9 +14,9 @@ namespace Editor::Data
 			ProjectLocation(QString pFolder, QString pName);
 
 			bool operator==(const ProjectLocation& pOther);
-
-			friend QDataStream& operator<<(QDataStream& pOut, const ProjectLocation& pValue);
-
-			friend QDataStream& operator>>(QDataStream& pIn, ProjectLocation& pValue);
 	};
+
+	QDataStream& operator<<(QDataStream& pOut, const ProjectLocation& pValue);
+
+	QDataStream& operator>>(QDataStream& pIn, ProjectLocation& pValue);
 }

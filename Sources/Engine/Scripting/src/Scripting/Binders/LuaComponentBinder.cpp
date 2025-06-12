@@ -110,7 +110,7 @@ void LuaComponentBinder::bind(sol::state& pLuaState)
 		{
 			if (DelegateFromString(pLuaState, pFunctionName))
 			{
-				pThis.DelegateLuaFunctionCP(pPressHold, pLuaState[pFunctionName], pName);
+				pThis.DelegateLuaFunctionCP(pPressHold, (std::function<void()>)pLuaState[pFunctionName], pName);
 			}
 		},
 		"SetText", [](CPUI& pThis, std::string pUIName, std::string pNewText)->void

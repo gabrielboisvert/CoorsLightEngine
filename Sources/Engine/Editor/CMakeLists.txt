@@ -48,7 +48,7 @@ foreach( include_i ${THIRD_PARTY_INCLUDE})
 endforeach( include_i )
 
 #Qt6
-file(GLOB_RECURSE QT_LIB ${PROJECT_NAME} PUBLIC ${DEPENDS_DIR}/Qt6/lib/release/*.lib)
+file(GLOB_RECURSE QT_LIB ${PROJECT_NAME} PUBLIC ${DEPENDS_DIR}/Qt6/lib/*.lib)
 target_link_libraries(${PROJECT_NAME} ${QT_LIB})
 
 #Qt advenced docking
