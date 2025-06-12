@@ -16,7 +16,7 @@ namespace Editor::Widget
 			DEBUG,
 			INFO,
 			WARNING,
-			ERROR
+			ERROR,
 		};
 
 		bool mClearPlay = true;

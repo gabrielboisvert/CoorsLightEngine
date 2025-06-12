@@ -23,15 +23,24 @@ void UIResource::load(QJsonObject const& pData)
 {
 	QJsonValue h = pData["hover"].toObject();
 	if (!h.isUndefined())
-		loadStyle(h.toObject(), hover);
+	{
+		QJsonObject obj = h.toObject();
+		loadStyle(obj, hover);
+	}
 
 	QJsonValue p = pData["press"].toObject();
 	if (!p.isUndefined())
-		loadStyle(p.toObject(), press);
+	{
+		QJsonObject obj = p.toObject();
+		loadStyle(obj, press);
+	}
 
 	QJsonValue n = pData["normal"].toObject();
 	if (!n.isUndefined())
-		loadStyle(n.toObject(), normal);
+	{
+		QJsonObject obj = n.toObject();
+		loadStyle(obj, normal);
+	}
 
 	isHidden = pData["isHidden"].toBool();
 	zOrder = pData["zOrder"].toInt();

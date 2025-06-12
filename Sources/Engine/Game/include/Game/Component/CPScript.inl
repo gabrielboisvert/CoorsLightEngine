@@ -17,9 +17,8 @@ namespace Game::Component
 				if (!funcRes.valid())
 				{
 					sol::error err = funcRes;
-#ifdef NSHIPPING
-					service(Editor::Widget::WidgetConsole).errorPrint(err.what());
-#endif
+
+					printError(err.what());
 				}
 			}
 		}

@@ -127,7 +127,10 @@ CPCamera::CPCamera(int pWidth, int pHeight, Maths::FVector3& pPosition, Maths::F
 	updateViewProj();
 #ifdef NSHIPPING
 	mCamViewer.mUniformBuffer.mData.mViewProjection = mVp;
-	mCamViewer.updateModel(Maths::FMatrix4::createTransformMatrix(pPosition, pRotation.eulerAngles(), Maths::FVector3::One));
+
+	Maths::FMatrix4 matrix = Maths::FMatrix4::createTransformMatrix(pPosition, pRotation.eulerAngles(), Maths::FVector3::One);
+
+	mCamViewer.updateModel(matrix);
 	mCamViewer.createFrustrum();
 #endif
 }

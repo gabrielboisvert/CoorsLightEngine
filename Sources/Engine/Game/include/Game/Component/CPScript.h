@@ -33,7 +33,7 @@ namespace Game::Component
 
 		void serialize(rapidjson::PrettyWriter<rapidjson::StringBuffer>& pWriter) override;
 
-		
+		void printError(const char* error);
 
 	public:
 		sol::table mLuaTable = sol::nil;

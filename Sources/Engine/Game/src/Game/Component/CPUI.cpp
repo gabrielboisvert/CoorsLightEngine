@@ -57,8 +57,8 @@ void CPUI::setUIWithPath(const char* pUI)
 void CPUI::setUIWithPathLua(const char* pPath)
 {
 	std::string currentPath = service(Game::SceneSys::SceneManager).mProjectPath + "/";
-
-	ui = service(EngineCore::ResourcesManagement::ResourceManager).create<Rendering::Resources::UI>(currentPath + pPath, currentPath + pPath);
+	std::string path = currentPath + pPath;
+	ui = service(EngineCore::ResourcesManagement::ResourceManager).create<Rendering::Resources::UI>(path, path);
 	mPathUI = currentPath + pPath;
 
 	if (ui == nullptr)
@@ -92,7 +92,7 @@ bool CPUI::contain(Maths::FVector2 p)
 Rendering::Resources::UIResource::IUIResource* CPUI::containClick(Maths::FVector2 p)
 {
 	if (ui == nullptr)
-		return false;
+		return nullptr;
 
 	return ui->containClick(p);
 }

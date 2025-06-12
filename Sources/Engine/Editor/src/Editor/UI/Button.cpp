@@ -122,28 +122,46 @@ void Button::load(QJsonObject const& pData)
     {
         QJsonValue h = pData["Ihover"].toObject();
         if (!h.isUndefined())
-            loadStyle(h.toObject(), mImageStyle.hover);
+        {
+            QJsonObject obj = h.toObject();
+            loadStyle(obj, mImageStyle.hover);
+        }
 
         QJsonValue p = pData["Ipress"].toObject();
         if (!p.isUndefined())
-            loadStyle(p.toObject(), mImageStyle.press);
+        {
+            QJsonObject obj = p.toObject();
+            loadStyle(obj, mImageStyle.press);
+        }
 
         QJsonValue n = pData["Inormal"].toObject();
         if (!n.isUndefined())
-            loadStyle(n.toObject(), mImageStyle.normal);
+        {
+            QJsonObject obj = n.toObject();
+            loadStyle(obj, mImageStyle.normal);
+        }
     }
     {
         QJsonValue h = pData["Thover"].toObject();
         if (!h.isUndefined())
-            loadStyle(h.toObject(), mTextStyle.hover);
+        {
+            QJsonObject obj = h.toObject();
+            loadStyle(obj, mTextStyle.hover);
+        }
 
         QJsonValue p = pData["Tpress"].toObject();
         if (!p.isUndefined())
-            loadStyle(p.toObject(), mTextStyle.press);
+        {
+            QJsonObject obj = p.toObject();
+            loadStyle(obj, mTextStyle.press);
+        }
 
         QJsonValue n = pData["Tnormal"].toObject();
         if (!n.isUndefined())
-            loadStyle(n.toObject(), mTextStyle.normal);
+        {
+            QJsonObject obj = n.toObject();
+            loadStyle(obj, mTextStyle.normal);
+        }
     }
 
     isHidden = pData["isHidden"].toBool();

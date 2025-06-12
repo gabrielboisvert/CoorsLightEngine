@@ -69,7 +69,8 @@ void CPModel::setModelWithPath(const char* pModel)
 void Game::Component::CPModel::setModelWithPathLua(const char* pPath)
 {
 	std::string currentPath = service(Game::SceneSys::SceneManager).mProjectPath + "/";
-	mModel = service(EngineCore::ResourcesManagement::ResourceManager).create<Rendering::Resources::Model>(currentPath + pPath, currentPath + pPath);
+	std::string path = currentPath + pPath;
+	mModel = service(EngineCore::ResourcesManagement::ResourceManager).create<Rendering::Resources::Model>(path, path);
 	mPath = currentPath + pPath;
 
 	if (mModel == nullptr)

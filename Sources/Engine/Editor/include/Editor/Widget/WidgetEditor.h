@@ -128,7 +128,9 @@ namespace Editor::Widget
 				pool.queueJob([this, pPath, pFileName]
 				{
 					EngineCore::ResourcesManagement::ResourceManager& manager = service(EngineCore::ResourcesManagement::ResourceManager);
-					T* resource = manager.create<T>(Utils::qStringToStdString(pPath), Utils::qStringToStdString(pPath));
+					std::string path = Utils::qStringToStdString(pPath);
+
+					T* resource = manager.create<T>(path, path);
 
 					if (std::is_same<T, Rendering::Resources::Model>::value)
 						createPreview(Utils::qStringToStdString(pFileName), (Rendering::Resources::Model*)resource);

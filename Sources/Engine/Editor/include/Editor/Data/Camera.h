@@ -36,7 +36,7 @@ namespace Editor::Data
 
 		void updateProjection(float pWidth, float pHeight);
 		void updateProjection();
-		void Camera::updateView();
+		void updateView();
 		void updateViewProj();
 
 		Maths::FMatrix4& viewProj();

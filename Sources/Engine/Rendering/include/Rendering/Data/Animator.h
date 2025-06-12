@@ -16,7 +16,7 @@ namespace Rendering::Data
         Animator();
         void setAnimationClip(Rendering::Resources::Animation* pAnimation);
         void updateAnimation(float pDeltaTime, bool looping);
-        void Animator::calculateBoneTransform(const Rendering::Resources::NodeData* pNode, Maths::FMatrix4 pParentTransform);
+        void calculateBoneTransform(const Rendering::Resources::NodeData* pNode, Maths::FMatrix4 pParentTransform);
     
         void reset();
     };

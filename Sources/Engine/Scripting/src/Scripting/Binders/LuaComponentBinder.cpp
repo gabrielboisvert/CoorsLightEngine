@@ -242,5 +242,5 @@ std::function<void(void*)>& Scripting::Binder::LuaComponentBinder::getFunctionFr
 	if (pInput.compare("OnTriggerExit") == 0)
 		return mPhysicsFunctions.OnTriggerExit;
 
-	return std::function<void(void*)>();
+	return mPhysicsFunctions.OnCollisionEnter;
 }

@@ -40,7 +40,7 @@ namespace Editor::Data
 			void drawCameraOffscreen(void* pCmd);
 		#endif
 
-			void Actor::updateProj(Maths::FMatrix4& pProj);
+			void updateProj(Maths::FMatrix4& pProj);
 			~Actor() = default;
 	};
 }

@@ -34,6 +34,13 @@ void CPScript::setScript(const char* pPath)
 	}
 }
 
+void CPScript::printError(const char* error)
+{
+#ifdef NSHIPPING
+	service(Editor::Widget::WidgetConsole).errorPrint(error);
+#endif
+}
+
 bool CPScript::registerToLua(sol::state& pLuaState)
 {
 	auto result = pLuaState.safe_script_file(mPath, sol::script_pass_on_error);

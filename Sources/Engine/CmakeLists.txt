@@ -83,6 +83,10 @@ set (CMAKE_CONFIGURATION_TYPES "Release;Debug;Shipping;Shipping_debug" CACHE STR
 
 project(Engine LANGUAGES CXX)
 
+if (MSVC)
+    add_compile_options(/permissive-)
+endif()
+
 add_compile_options(/Zc:__cplusplus)
 
 find_package(Vulkan REQUIRED COMPONENTS glslc)

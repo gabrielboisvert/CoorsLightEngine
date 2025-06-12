@@ -11,7 +11,7 @@ namespace Editor::Core
 	{
 	public:
 		EditorApp(int& pArgc);
-		std::tuple<bool, std::string, std::string> EditorApp::runHub();
+		std::tuple<bool, std::string, std::string> runHub();
 		Define::EEditorState runEditor(const std::string& pProjectPath, const std::string& projectName);
 		void installEventFilter(QObject* pObject);
 		void removeEventFilter(QObject* pObject);

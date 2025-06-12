@@ -38,7 +38,7 @@ namespace Rendering::Renderer::VK
 
 			void init(EngineWindow::Core::Window& pWindow);
 			void initVulkan();
-			Rendering::Data::QueueFamilyIndices VKRenderer::findQueueFamilies(VkPhysicalDevice& pdevice);
+			Rendering::Data::QueueFamilyIndices findQueueFamilies(VkPhysicalDevice& pdevice);
 			void getGraphicsQueue();
 			void initSwapchain();
 			void initCommands();

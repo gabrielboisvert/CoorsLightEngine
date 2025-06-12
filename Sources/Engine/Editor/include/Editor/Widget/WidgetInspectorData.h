@@ -131,7 +131,7 @@ namespace Editor::Widget
 		void addSpotLight(Game::Component::CPSpotLight* pSpotLight);
 
 		WidgetDoubleSpinBox* setSpinBox(std::string pText, float& pAxisVal, QGridLayout* pLayout, int row, int column);
-		void WidgetInspectorData::setIndividualBoxAxisScrollbar(std::string pText, float& pAxisVal, QGridLayout* pLayout, Game::Component::ACollider& pCol, int row, int column);
+		void setIndividualBoxAxisScrollbar(std::string pText, float& pAxisVal, QGridLayout* pLayout, Game::Component::ACollider& pCol, int row, int column);
 		QColor setColorWidget(const QColor& pColor);
 
 	};

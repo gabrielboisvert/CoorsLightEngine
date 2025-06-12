@@ -82,7 +82,7 @@ namespace Rendering::Context
 
 			static DescriptorBuilder begin(DescriptorLayoutCache* pLayoutCache, DescriptorAllocator* pAllocator);
 
-			VkDescriptorSetLayoutBinding DescriptorBuilder::descriptorsetLayoutBinding(VkDescriptorType pType, VkShaderStageFlags pStageFlags, uint32_t pBinding);
+			VkDescriptorSetLayoutBinding descriptorsetLayoutBinding(VkDescriptorType pType, VkShaderStageFlags pStageFlags, uint32_t pBinding);
 			VkWriteDescriptorSet writeDescriptorBuffer(VkDescriptorType pType, VkDescriptorSet pSet, VkDescriptorBufferInfo* pInfo, uint32_t pBinding);
 
 			DescriptorBuilder& bind_buffer(uint32_t pBinding, VkDescriptorBufferInfo* pBufferInfo, VkDescriptorType pType, VkShaderStageFlags pStageFlags);
