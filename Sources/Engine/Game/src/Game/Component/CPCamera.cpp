@@ -25,11 +25,12 @@ CameraViewer::CameraViewer(Maths::FMatrix4& pViewProj)
 			service(Rendering::Renderer::VK::VKRenderer).mRenderPass, 
 			false));
 
-	mMat->bindDescriptor("texAlbedo", mTexture.mTextureSets);
+	mMat->bindDescriptor("texSampler", mTexture.mTextureSets);
+	/*mMat->bindDescriptor("texAlbedo", mTexture.mTextureSets);
 	mMat->bindDescriptor("texNormal", mTexture.mTextureSets);
 	mMat->bindDescriptor("texMetallic", mTexture.mTextureSets);
 	mMat->bindDescriptor("texRoughness", mTexture.mTextureSets);
-	mMat->bindDescriptor("texAO", mTexture.mTextureSets);
+	mMat->bindDescriptor("texAO", mTexture.mTextureSets);*/
 	mMat->bindDescriptor("ubo", mUniformBuffer.mDescriptorSets);
 }
 

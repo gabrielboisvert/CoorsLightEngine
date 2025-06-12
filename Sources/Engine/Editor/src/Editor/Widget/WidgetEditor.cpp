@@ -960,11 +960,12 @@ void WidgetEditor::createPreview(std::string pFile, Rendering::Resources::Model*
     Rendering::Buffers::VK::VKUniformBuffer<Rendering::Data::UniformData> unibuffer(VK_SHADER_STAGE_VERTEX_BIT);
 
     //Bind to material
-    mat.bindDescriptor("texAlbedo", text.mTextureSets);
+    mat.bindDescriptor("texSampler", text.mTextureSets);
+    /*mat.bindDescriptor("texAlbedo", text.mTextureSets);
     mat.bindDescriptor("texNormal", text.mTextureSets);
     mat.bindDescriptor("texMetallic", text.mTextureSets);
     mat.bindDescriptor("texRoughness", text.mTextureSets);
-    mat.bindDescriptor("texAO", text.mTextureSets);
+    mat.bindDescriptor("texAO", text.mTextureSets);*/
     mat.bindDescriptor("ubo", unibuffer.mDescriptorSets);
 
     // Settup data view

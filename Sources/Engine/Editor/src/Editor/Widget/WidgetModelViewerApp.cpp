@@ -28,11 +28,12 @@ WidgetModelViewerApp::WidgetModelViewerApp(QSettings& pSetting, QWidget* pParent
 	mDefaultMat = new  Rendering::Data::Material(Rendering::Renderer::Resources::VK::PipeLineBuilder()
 		.initPipeLine("Resources/Engine/Shaders/UnlitModelVertex.vert.spv", "Resources/Engine/Shaders/UnlitModelFrag.frag.spv", renderer.mRenderPass, false));
 	mDefaultMat->bindDescriptor("ubo", mUnibuffer.mDescriptorSets);
-	mDefaultMat->bindDescriptor("texAlbedo", mDefaultTexture.mTextureSets);
+	/*mDefaultMat->bindDescriptor("texAlbedo", mDefaultTexture.mTextureSets);
 	mDefaultMat->bindDescriptor("texNormal", mDefaultTexture.mTextureSets);
 	mDefaultMat->bindDescriptor("texMetallic", mDefaultTexture.mTextureSets);
 	mDefaultMat->bindDescriptor("texRoughness", mDefaultTexture.mTextureSets);
-	mDefaultMat->bindDescriptor("texAO", mDefaultTexture.mTextureSets);
+	mDefaultMat->bindDescriptor("texAO", mDefaultTexture.mTextureSets);*/
+	mDefaultMat->bindDescriptor("texSampler", mDefaultTexture.mTextureSets);
 
 	mGridMat = new  Rendering::Data::Material(Rendering::Renderer::Resources::VK::PipeLineBuilder()
 		.initPipeLine("Resources/Editor/Shaders/gridVertex.vert.spv", "Resources/Editor/Shaders/gridFrag.frag.spv", renderer.mRenderPass, true));
